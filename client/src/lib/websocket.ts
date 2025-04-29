@@ -109,12 +109,15 @@ export const WebsocketProvider = ({ children }: { children: React.ReactNode }) =
         setIsConnecting(false);
         setSocket(null);
         
+        // Don't change the lastMessage to null - keep showing the last known state
+        // This ensures the UI doesn't show "disconnected" for Discord even when just the WebSocket is disconnected
+        
         // Increase reconnect attempts for backoff calculation
         setReconnectAttempts(prev => prev + 1);
         
-        // Calculate backoff time - starts at 3 seconds and increases exponentially
-        // but caps at 2 minutes (120000ms)
-        const backoffTime = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 120000);
+        // Calculate backoff time - starts at 2 seconds and increases exponentially
+        // but caps at 1 minute (60000ms) to ensure quicker reconnects on mobile
+        const backoffTime = Math.min(2000 * Math.pow(1.5, reconnectAttempts), 60000);
         console.log(`Reconnecting in ${backoffTime/1000} seconds...`);
         
         // Try to reconnect after calculated delay
