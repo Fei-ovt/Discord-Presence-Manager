@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord 24/7 Status Controller</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #1a1b26;
+      color: #c0caf5;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      color: #7aa2f7;
+    }
+    .status-panel {
+      background-color: #24283b;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .connected {
+      background-color: #9ece6a;
+    }
+    .connecting {
+      background-color: #e0af68;
+      animation: pulse 1.5s infinite;
+    }
+    .disconnected, .error {
+      background-color: #f7768e;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+    .control-panel {
+      background-color: #24283b;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    button {
+      background-color: #414868;
+      color: #c0caf5;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #545c7e;
+    }
+    button.active {
+      background-color: #7aa2f7;
+      color: #1a1b26;
+    }
+    input[type="text"] {
+      background-color: #414868;
+      color: #c0caf5;
+      border: none;
+      border-radius: 4px;
+      padding: 8px;
+      width: 100%;
+      max-width: 300px;
+      margin-right: 10px;
+    }
+    .log-panel {
+      background-color: #24283b;
+      border-radius: 8px;
+      padding: 20px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 14px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .log-entry {
+      margin-bottom: 5px;
+      border-left: 3px solid #414868;
+      padding-left: 10px;
+    }
+    .log-error {
+      border-left-color: #f7768e;
+    }
+    .log-success {
+      border-left-color: #9ece6a;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #565f89;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Discord 24/7 Status Controller</h1>
+  
+  <div class="status-panel">
+    <h2>Connection Status</h2>
+    <div class="status">
+      <div class="status-indicator connected" id="connection-indicator"></div>
+      <span id="connection-status-text">Connected</span>
+    </div>
+    <div class="status">
+      <strong>Status Mode:</strong> <span id="status-mode">Online</span>
+    </div>
+    <div class="status">
+      <strong>Voice Status:</strong> <span id="voice-status">Not Connected</span>
+    </div>
+    <div class="status">
+      <strong>Uptime:</strong> <span id="uptime">Loading...</span>
+    </div>
+  </div>
+  
+  <div class="control-panel">
+    <h2>Account Status</h2>
+    <div class="button-group">
+      <button id="toggle-account" class="active">Active</button>
+    </div>
+    
+    <h2>Status Mode</h2>
+    <div class="button-group">
+      <button id="status-online" class="active">Online</button>
+      <button id="status-idle">Idle</button>
+      <button id="status-dnd">Do Not Disturb</button>
+      <button id="status-invisible">Invisible</button>
+    </div>
+    
+    <h2>Voice Connection</h2>
+    <div>
+      <input type="text" id="channel-id" placeholder="Voice Channel ID" />
+      <div class="button-group">
+        <button id="toggle-voice" class="active">Voice Active</button>
+        <button id="connect-voice">Connect</button>
+        <button id="disconnect-voice">Disconnect</button>
+      </div>
+    </div>
+    
+    <h2>Settings</h2>
+    <div class="button-group">
+      <button id="toggle-reconnect" class="active">Auto Reconnect</button>
+      <button id="toggle-notifications" class="active">System Notifications</button>
+    </div>
+  </div>
+  
+  <div class="log-panel" id="log-panel">
+    <div class="log-entry log-success">System initialized</div>
+    <div class="log-entry">Connecting to Discord API...</div>
+    <div class="log-entry log-success">Discord connection established</div>
+  </div>
+  
+  <div class="footer">
+    <p>Discord Token: <span id="token-status">DISCORD TOKEN = SETTING IN ENV</span></p>
+    <p>Discord 24/7 Status Controller v1.0.0</p>
+  </div>
+
+  <script>
+    // Status variables
+    let connectionStatus = 'connected';
+    let statusMode = 'online';
+    let isAccountActive = true;
+    let isVoiceActive = true;
+    let voiceStatus = 'disconnected';
+    let autoReconnect = true;
+    let systemNotifications = true;
+    
+    // UI elements
+    const connectionIndicator = document.getElementById('connection-indicator');
+    const connectionStatusText = document.getElementById('connection-status-text');
+    const statusModeText = document.getElementById('status-mode');
+    const voiceStatusText = document.getElementById('voice-status');
+    const uptimeText = document.getElementById('uptime');
+    const logPanel = document.getElementById('log-panel');
+    
+    // Buttons
+    const toggleAccountBtn = document.getElementById('toggle-account');
+    const statusOnlineBtn = document.getElementById('status-online');
+    const statusIdleBtn = document.getElementById('status-idle');
+    const statusDndBtn = document.getElementById('status-dnd');
+    const statusInvisibleBtn = document.getElementById('status-invisible');
+    const toggleVoiceBtn = document.getElementById('toggle-voice');
+    const connectVoiceBtn = document.getElementById('connect-voice');
+    const disconnectVoiceBtn = document.getElementById('disconnect-voice');
+    const toggleReconnectBtn = document.getElementById('toggle-reconnect');
+    const toggleNotificationsBtn = document.getElementById('toggle-notifications');
+    
+    // Channel ID input
+    const channelIdInput = document.getElementById('channel-id');
+    
+    // Function to update the UI based on status
+    function updateUI() {
+      // Update connection indicator
+      connectionIndicator.className = `status-indicator ${connectionStatus}`;
+      connectionStatusText.textContent = connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1);
+      
+      // Update status mode
+      statusModeText.textContent = statusMode.charAt(0).toUpperCase() + statusMode.slice(1);
+      
+      // Update voice status
+      voiceStatusText.textContent = voiceStatus === 'connected' ? 'Connected' : 'Not Connected';
+      
+      // Update button states
+      toggleAccountBtn.textContent = isAccountActive ? 'Active' : 'Inactive';
+      toggleAccountBtn.className = isAccountActive ? 'active' : '';
+      
+      // Update status mode buttons
+      statusOnlineBtn.className = statusMode === 'online' ? 'active' : '';
+      statusIdleBtn.className = statusMode === 'idle' ? 'active' : '';
+      statusDndBtn.className = statusMode === 'dnd' ? 'active' : '';
+      statusInvisibleBtn.className = statusMode === 'invisible' ? 'active' : '';
+      
+      // Update voice buttons
+      toggleVoiceBtn.textContent = isVoiceActive ? 'Voice Active' : 'Voice Inactive';
+      toggleVoiceBtn.className = isVoiceActive ? 'active' : '';
+      
+      // Update setting buttons
+      toggleReconnectBtn.className = autoReconnect ? 'active' : '';
+      toggleNotificationsBtn.className = systemNotifications ? 'active' : '';
+    }
+    
+    // Function to add a log entry
+    function addLogEntry(message, type = '') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = message;
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+    
+    // Set up WebSocket connection
+    function setupWebSocket() {
+      addLogEntry('Attempting to connect to server...', '');
+      
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const socket = new WebSocket(wsUrl);
+        
+        socket.onopen = () => {
+          connectionStatus = 'connected';
+          addLogEntry('Connected to server!', 'log-success');
+          updateUI();
+        };
+        
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Update our status variables
+            connectionStatus = data.connectionStatus || connectionStatus;
+            statusMode = data.statusMode || statusMode;
+            isAccountActive = data.isAccountActive !== undefined ? data.isAccountActive : isAccountActive;
+            isVoiceActive = data.isVoiceActive !== undefined ? data.isVoiceActive : isVoiceActive;
+            voiceStatus = data.voiceStatus || voiceStatus;
+            autoReconnect = data.autoReconnect !== undefined ? data.autoReconnect : autoReconnect;
+            
+            // Update uptime
+            if (data.uptime) {
+              uptimeText.textContent = data.uptime;
+            }
+            
+            updateUI();
+          } catch (error) {
+            console.error('Error parsing message:', error);
+          }
+        };
+        
+        socket.onclose = () => {
+          connectionStatus = 'disconnected';
+          addLogEntry('Disconnected from server. Reconnecting...', 'log-error');
+          updateUI();
+          
+          // Try to reconnect after 3 seconds
+          setTimeout(setupWebSocket, 3000);
+        };
+        
+        socket.onerror = (error) => {
+          connectionStatus = 'error';
+          addLogEntry('WebSocket error!', 'log-error');
+          console.error('WebSocket error:', error);
+          updateUI();
+        };
+      } catch (error) {
+        addLogEntry('Error setting up WebSocket connection!', 'log-error');
+        console.error('Setup error:', error);
+      }
+    }
+    
+    // Set up API request function
+    async function makeRequest(endpoint, method = 'GET', data = null) {
+      try {
+        const options = {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        };
+        
+        if (data) {
+          options.body = JSON.stringify(data);
+        }
+        
+        const response = await fetch(endpoint, options);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        addLogEntry(`API request failed: ${error.message}`, 'log-error');
+        console.error('API request error:', error);
+        throw error;
+      }
+    }
+    
+    // Button event listeners
+    toggleAccountBtn.addEventListener('click', async () => {
+      try {
+        isAccountActive = !isAccountActive;
+        addLogEntry(`Setting account ${isAccountActive ? 'active' : 'inactive'}...`);
+        await makeRequest('/api/discord/account-status', 'POST', { isActive: isAccountActive });
+        addLogEntry(`Account is now ${isAccountActive ? 'active' : 'inactive'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle account status', 'log-error');
+      }
+    });
+    
+    // Status mode buttons
+    statusOnlineBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to online...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'online' });
+        statusMode = 'online';
+        addLogEntry('Status set to online', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusIdleBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to idle...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'idle' });
+        statusMode = 'idle';
+        addLogEntry('Status set to idle', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusDndBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to do not disturb...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'dnd' });
+        statusMode = 'dnd';
+        addLogEntry('Status set to do not disturb', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusInvisibleBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to invisible...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'invisible' });
+        statusMode = 'invisible';
+        addLogEntry('Status set to invisible', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    // Voice connection buttons
+    toggleVoiceBtn.addEventListener('click', async () => {
+      try {
+        isVoiceActive = !isVoiceActive;
+        addLogEntry(`Setting voice ${isVoiceActive ? 'active' : 'inactive'}...`);
+        await makeRequest('/api/discord/voice-active', 'POST', { isActive: isVoiceActive });
+        addLogEntry(`Voice is now ${isVoiceActive ? 'active' : 'inactive'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle voice status', 'log-error');
+      }
+    });
+    
+    connectVoiceBtn.addEventListener('click', async () => {
+      try {
+        const channelId = channelIdInput.value.trim();
+        
+        if (!channelId) {
+          addLogEntry('Please enter a voice channel ID', 'log-error');
+          return;
+        }
+        
+        // First save the channel ID
+        addLogEntry(`Setting voice channel ID to ${channelId}...`);
+        await makeRequest('/api/discord/channel-id', 'POST', { channelId });
+        
+        // Then connect to the voice channel
+        addLogEntry('Connecting to voice channel...');
+        await makeRequest('/api/discord/connect-voice', 'POST');
+        voiceStatus = 'connected';
+        addLogEntry('Connected to voice channel', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to connect to voice channel', 'log-error');
+      }
+    });
+    
+    disconnectVoiceBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Disconnecting from voice channel...');
+        await makeRequest('/api/discord/disconnect-voice', 'POST');
+        voiceStatus = 'disconnected';
+        addLogEntry('Disconnected from voice channel', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to disconnect from voice channel', 'log-error');
+      }
+    });
+    
+    // Settings buttons
+    toggleReconnectBtn.addEventListener('click', async () => {
+      try {
+        autoReconnect = !autoReconnect;
+        addLogEntry(`Setting auto reconnect ${autoReconnect ? 'enabled' : 'disabled'}...`);
+        await makeRequest('/api/discord/auto-reconnect', 'POST', { enabled: autoReconnect });
+        addLogEntry(`Auto reconnect is now ${autoReconnect ? 'enabled' : 'disabled'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle auto reconnect', 'log-error');
+      }
+    });
+    
+    toggleNotificationsBtn.addEventListener('click', async () => {
+      try {
+        systemNotifications = !systemNotifications;
+        addLogEntry(`Setting system notifications ${systemNotifications ? 'enabled' : 'disabled'}...`);
+        await makeRequest('/api/discord/notifications', 'POST', { enabled: systemNotifications });
+        addLogEntry(`System notifications are now ${systemNotifications ? 'enabled' : 'disabled'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle system notifications', 'log-error');
+      }
+    });
+    
+    // Initial setup
+    async function initializeApp() {
+      try {
+        // Get initial status
+        const status = await makeRequest('/api/discord/status');
+        
+        if (status && status.status) {
+          connectionStatus = status.status.connectionStatus || connectionStatus;
+          statusMode = status.status.statusMode || statusMode;
+          isAccountActive = status.status.isAccountActive !== undefined ? status.status.isAccountActive : isAccountActive;
+          isVoiceActive = status.status.isVoiceActive !== undefined ? status.status.isVoiceActive : isVoiceActive;
+          voiceStatus = status.status.voiceStatus || voiceStatus;
+          autoReconnect = status.status.autoReconnect !== undefined ? status.status.autoReconnect : autoReconnect;
+          
+          if (status.status.uptime) {
+            uptimeText.textContent = status.status.uptime;
+          }
+          
+          if (status.channelId) {
+            channelIdInput.value = status.channelId;
+          }
+        }
+        
+        updateUI();
+        addLogEntry('Successfully initialized from server status', 'log-success');
+      } catch (error) {
+        addLogEntry('Failed to get initial status', 'log-error');
+        console.error('Initialization error:', error);
+      }
+      
+      // Set up WebSocket
+      setupWebSocket();
+    }
+    
+    // Start the app
+    initializeApp();
+    
+    // Set up periodic uptime updates (if WebSocket fails)
+    setInterval(async () => {
+      try {
+        if (connectionStatus !== 'connected') {
+          const response = await fetch('/api/health');
+          const data = await response.json();
+          
+          if (data && data.uptime) {
+            uptimeText.textContent = `${Math.floor(data.uptime / 60)} minutes`;
+          }
+        }
+      } catch (error) {
+        console.error('Error updating uptime:', error);
+      }
+    }, 30000);
+  </script>
+</body>
+</html>

@@ -16,8 +16,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/', (req, res) => {
     // If it's a browser request (looks for HTML), serve the app
     if (req.headers.accept && req.headers.accept.includes('text/html')) {
-      // Let the Vite middleware handle it for serving the React app
-      return res.redirect('/index.html');
+      // Serve our static HTML file
+      return res.sendFile('index.html', { root: '.' });
     }
     
     // For non-browser requests directly to the root, show basic status
