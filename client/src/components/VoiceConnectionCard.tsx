@@ -24,7 +24,20 @@ export default function VoiceConnectionCard() {
 
   const [channelIdInput, setChannelIdInput] = useState(channelId || '');
 
+  // Use state to make toggle switches instantly responsive
+  const [localVoiceActive, setLocalVoiceActive] = useState(isVoiceActive);
+  const [localAutoReconnect, setLocalAutoReconnect] = useState(autoReconnect);
+  
+  // Update local state when props change
+  React.useEffect(() => {
+    setLocalVoiceActive(isVoiceActive);
+    setLocalAutoReconnect(autoReconnect);
+  }, [isVoiceActive, autoReconnect]);
+  
   const handleToggleVoiceConnection = async (checked: boolean) => {
+    // Update local state immediately for responsive UI
+    setLocalVoiceActive(checked);
+    
     try {
       await apiRequest('POST', '/api/discord/voice-active', { isActive: checked });
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -33,6 +46,8 @@ export default function VoiceConnectionCard() {
         description: `Voice connection is now ${checked ? 'active' : 'inactive'}`
       });
     } catch (err) {
+      // Revert local state on error
+      setLocalVoiceActive(!checked);
       toast({
         variant: "destructive",
         title: "Failed to update voice connection",
@@ -42,6 +57,9 @@ export default function VoiceConnectionCard() {
   };
 
   const handleToggleAutoReconnect = async (checked: boolean) => {
+    // Update local state immediately for responsive UI
+    setLocalAutoReconnect(checked);
+    
     try {
       await apiRequest('POST', '/api/discord/auto-reconnect', { enabled: checked });
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -50,6 +68,8 @@ export default function VoiceConnectionCard() {
         description: `Auto reconnect is now ${checked ? 'enabled' : 'disabled'}`
       });
     } catch (err) {
+      // Revert local state on error
+      setLocalAutoReconnect(!checked);
       toast({
         variant: "destructive",
         title: "Failed to update auto reconnect",
@@ -84,7 +104,21 @@ export default function VoiceConnectionCard() {
     }
   };
 
+  // Add state for button loading indicators
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  // Add local voice status for immediate UI feedback
+  const [localVoiceStatus, setLocalVoiceStatus] = useState(voiceStatus);
+  
+  // Update local voice status when the server state changes
+  React.useEffect(() => {
+    setLocalVoiceStatus(voiceStatus);
+  }, [voiceStatus]);
+
   const handleConnectVoice = async () => {
+    setIsConnecting(true);
+    setLocalVoiceStatus('connecting'); // Immediate feedback
+    
     try {
       await apiRequest('POST', '/api/discord/connect-voice', {});
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -92,16 +126,24 @@ export default function VoiceConnectionCard() {
         title: "Connecting to Voice Channel",
         description: "Attempting to connect to the voice channel"
       });
+      // We'll let the server update the actual status from the websocket
     } catch (err) {
+      // Revert to previous state on error
+      setLocalVoiceStatus('disconnected');
       toast({
         variant: "destructive",
         title: "Connection Failed",
         description: err instanceof Error ? err.message : "Unknown error occurred"
       });
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   const handleDisconnectVoice = async () => {
+    setIsDisconnecting(true);
+    setLocalVoiceStatus('disconnected'); // Immediate feedback
+    
     try {
       await apiRequest('POST', '/api/discord/disconnect-voice', {});
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -109,17 +151,22 @@ export default function VoiceConnectionCard() {
         title: "Disconnected from Voice",
         description: "Successfully disconnected from voice channel"
       });
+      // We'll let the server update the actual status from the websocket
     } catch (err) {
+      // Revert to previous state on error
+      setLocalVoiceStatus(voiceStatus);
       toast({
         variant: "destructive",
         title: "Disconnection Failed",
         description: err instanceof Error ? err.message : "Unknown error occurred"
       });
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
   // Voice status styles
-  const getVoiceStatusStyle = () => {
+  const getVoiceStatusStyle = (status: string) => {
     const statusMap: Record<string, { bg: string, text: string }> = {
       connected: { bg: 'bg-discord-online', text: 'text-discord-online' },
       connecting: { bg: 'bg-discord-idle', text: 'text-discord-idle' },
@@ -127,17 +174,18 @@ export default function VoiceConnectionCard() {
       error: { bg: 'bg-discord-dnd', text: 'text-discord-dnd' }
     };
     
-    return statusMap[voiceStatus] || statusMap.disconnected;
+    return statusMap[status] || statusMap.disconnected;
   };
 
-  const voiceStatusStyle = getVoiceStatusStyle();
+  // Use local voice status for immediate UI feedback
+  const voiceStatusStyle = getVoiceStatusStyle(localVoiceStatus);
 
   return (
     <Card className="bg-discord-surface rounded-lg shadow-lg overflow-hidden">
       <div className="p-4 border-b border-gray-800 flex justify-between items-center">
         <h2 className="text-lg font-medium">Voice Connection</h2>
         <Switch 
-          checked={isVoiceActive}
+          checked={localVoiceActive}
           onCheckedChange={handleToggleVoiceConnection}
           disabled={isLoading}
         />
@@ -185,7 +233,7 @@ export default function VoiceConnectionCard() {
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium">Auto Reconnect</span>
               <Switch 
-                checked={autoReconnect}
+                checked={localAutoReconnect}
                 onCheckedChange={handleToggleAutoReconnect}
               />
             </div>
@@ -195,19 +243,27 @@ export default function VoiceConnectionCard() {
               <Button
                 className="py-2.5 px-4 bg-discord-blue text-white rounded flex items-center justify-center space-x-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
                 onClick={handleConnectVoice}
-                disabled={!isVoiceActive || !channelId}
+                disabled={!localVoiceActive || !channelId || isConnecting || localVoiceStatus === 'connected'}
               >
-                <LinkIcon className="h-5 w-5" />
-                <span>Connect</span>
+                {isConnecting ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-opacity-50 border-t-transparent rounded-full"></div>
+                ) : (
+                  <LinkIcon className="h-5 w-5" />
+                )}
+                <span>{isConnecting ? "Connecting..." : "Connect"}</span>
               </Button>
               <Button
                 variant="secondary"
                 className="py-2.5 px-4 bg-gray-700 text-white rounded flex items-center justify-center space-x-2 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 onClick={handleDisconnectVoice}
-                disabled={voiceStatus !== 'connected'}
+                disabled={localVoiceStatus !== 'connected' || isDisconnecting}
               >
-                <UnlinkIcon className="h-5 w-5" />
-                <span>Disconnect</span>
+                {isDisconnecting ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-opacity-50 border-t-transparent rounded-full"></div>
+                ) : (
+                  <UnlinkIcon className="h-5 w-5" />
+                )}
+                <span>{isDisconnecting ? "Disconnecting..." : "Disconnect"}</span>
               </Button>
             </div>
 
@@ -216,16 +272,16 @@ export default function VoiceConnectionCard() {
               <div className="flex items-center text-sm text-discord-muted">
                 <span>Connection Status:</span>
                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${voiceStatusStyle.bg} bg-opacity-20 ${voiceStatusStyle.text}`}>
-                  {voiceStatus.charAt(0).toUpperCase() + voiceStatus.slice(1)}
+                  {localVoiceStatus.charAt(0).toUpperCase() + localVoiceStatus.slice(1)}
                 </span>
               </div>
               <div className="flex justify-between text-sm mt-2">
                 <span className="text-discord-muted">Connected to</span>
-                <span>{connectedChannel || 'Not connected'}</span>
+                <span>{localVoiceStatus === 'connected' ? (connectedChannel || 'Voice Channel') : 'Not connected'}</span>
               </div>
               <div className="flex justify-between text-sm mt-2">
                 <span className="text-discord-muted">Connected for</span>
-                <span>{connectionDuration || 'N/A'}</span>
+                <span>{localVoiceStatus === 'connected' ? (connectionDuration || 'Just connected') : 'N/A'}</span>
               </div>
             </div>
           </>
