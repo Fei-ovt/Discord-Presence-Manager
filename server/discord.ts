@@ -32,26 +32,42 @@ export async function setupDiscordClient(): Promise<Client | null> {
     return null;
   }
   
-  // Ensure token is properly formatted - trim whitespace
+  // Ensure token is properly formatted
   token = token.trim();
   
+  // Remove any "Bearer " prefix if present
+  if (token.startsWith('Bearer ')) {
+    token = token.substring(7);
+  }
+  
+  // Remove any quotes that might be present
+  token = token.replace(/['"]+/g, '');
+  
   // Log that we're setting up (don't log the actual token)
-  console.log('Setting up Discord client with token...', token.substring(0, 5) + '...' + token.substring(token.length - 5));
+  console.log('Setting up Discord client with token...', 
+    token.length > 10 ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : '[INVALID TOKEN FORMAT]');
   // Don't log the actual token for security
   
   // Create new client with specific options for user accounts
   try {
+    // Try a different client configuration that has more success with tokens
     client = new Client({
       checkUpdate: false,
       ws: {
         properties: {
-          $browser: "Discord iOS" // This helps with token validation for user accounts
+          $browser: "Chrome", // Try Chrome as browser identifier
+          $device: "Windows",
+          $os: "Windows 10"
         }
       },
+      // These settings mimic a regular Discord Web client
+      restRequestTimeout: 60000,
+      restGlobalRateLimit: 50,
+      retryLimit: 5,
       patchVoice: true, // Enable voice support
       syncStatus: true, // Make sure status updates are synced
       messageCacheMaxSize: 50, // Reduce memory usage
-      // Use minimal intents to avoid detection
+      // Minimal intents to avoid detection
       intents: [
         "GUILDS", 
         "GUILD_MESSAGES", 
