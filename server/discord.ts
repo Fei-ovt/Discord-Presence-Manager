@@ -434,7 +434,9 @@ export async function setStatusMode(mode: string) {
               messageCacheMaxSize: 50,
               ws: {
                 properties: {
-                  $browser: 'Discord Android',
+                  $browser: 'Chrome',
+                  $device: 'Windows',
+                  $os: 'Windows 10'
                 },
               },
               presence: {
