@@ -339,12 +339,12 @@ export default function VoiceConnectionCard() {
                 <Button
                   onClick={handleSaveChannelId}
                   disabled={!channelIdInput.trim()}
-                  className="absolute right-1 top-1 flex items-center justify-center bg-gray-800 text-white py-2 px-3 rounded-xl hover:bg-gray-700 transition-colors"
-                  style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}
+                  className="absolute right-1 top-1 flex items-center justify-center bg-gray-800 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                  style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)', minWidth: '80px' }}
                 >
                   <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full bg-green-500"></span>
-                    Save
+                    <span className="h-3 w-3 rounded-full bg-green-500 flex-shrink-0"></span>
+                    <span className="mr-1">Save</span>
                   </span>
                 </Button>
               </div>

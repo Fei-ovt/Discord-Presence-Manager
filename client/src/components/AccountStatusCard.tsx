@@ -129,10 +129,20 @@ export default function AccountStatusCard() {
   };
 
   // Status options for the buttons with proper typing
-  const statusOptions: {key: 'online' | 'idle' | 'dnd' | 'invisible', label: string, color: string}[] = [
+  const statusOptions: {key: 'online' | 'idle' | 'dnd' | 'invisible', label: string, displayLabel?: React.ReactNode, color: string}[] = [
     { key: 'online', label: 'Online', color: 'bg-discord-online' },
     { key: 'idle', label: 'Idle', color: 'bg-discord-idle' },
-    { key: 'dnd', label: 'Do Not Disturb', color: 'bg-discord-dnd' },
+    { 
+      key: 'dnd', 
+      label: 'Do Not Disturb', 
+      displayLabel: (
+        <div className="flex flex-col items-center justify-center">
+          <span>Do Not</span>
+          <span>Disturb</span>
+        </div>
+      ),
+      color: 'bg-discord-dnd' 
+    },
     { key: 'invisible', label: 'Invisible', color: 'bg-discord-invisible' }
   ];
   
@@ -278,7 +288,7 @@ export default function AccountStatusCard() {
                       ) : (
                         <span className={`h-3 w-3 rounded-full ${option.color}`}></span>
                       )}
-                      <span>{option.label}</span>
+                      <span>{option.displayLabel || option.label}</span>
                     </button>
                   );
                 })}
