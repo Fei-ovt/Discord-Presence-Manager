@@ -209,30 +209,52 @@ export default function SettingsAndLogsCard() {
             <div className="mt-4 py-3 px-4 bg-green-900/20 border border-green-800 rounded-lg">
               <div className="flex items-center">
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                <h3 className="text-sm font-medium text-green-400">24/7 Uptime Ready</h3>
+                <h3 className="text-sm font-medium text-green-400">24/7 Uptime Setup</h3>
               </div>
               <p className="mt-2 text-xs text-green-300/80">
-                This application supports 24/7 uptime with UptimeRobot. 
-                See DEPLOYMENT.md for setup instructions.
+                This application must be monitored by UptimeRobot to stay online 24/7. Even when you close this page, 
+                your Discord presence will remain active as long as UptimeRobot keeps pinging the server.
               </p>
-              <div className="mt-2 flex items-center text-xs text-green-300/70">
-                <span>Health Check URL:</span>
-                <code className="ml-2 px-2 py-1 bg-gray-800 rounded">/api/health</code>
+              
+              <div className="mt-3 bg-gray-800/50 rounded p-2 border border-green-900/30">
+                <h4 className="text-xs font-medium text-green-400">UptimeRobot Setup (Required):</h4>
+                <ol className="mt-1 text-xs text-green-300/80 list-decimal pl-4 space-y-1">
+                  <li>Sign up at <span className="text-green-400">uptimerobot.com</span> (free tier)</li>
+                  <li>Add a new monitor of type <span className="text-green-400">HTTP(s)</span></li>
+                  <li>Set the URL to your app + <span className="text-green-400">/health</span></li>
+                  <li>Set the monitoring interval to <span className="text-green-400">5 minutes</span></li>
+                  <li>Create a second identical monitor as backup</li>
+                </ol>
+                <p className="mt-2 text-xs text-yellow-300/80">
+                  <span className="font-semibold">Important:</span> Without UptimeRobot, your presence will go offline when you close this page!
+                </p>
               </div>
-              <div className="mt-2 text-xs text-green-300/70">
+              
+              <div className="mt-3 flex flex-col text-xs text-green-300/70">
                 <div className="flex justify-between items-center">
-                  <span>Discord Token:</span>
+                  <span>Primary Health Check URL:</span>
+                  <code className="ml-2 px-2 py-1 bg-gray-800 rounded">/health</code>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span>Secondary Health Check URL:</span>
+                  <code className="ml-2 px-2 py-1 bg-gray-800 rounded">/api/health</code>
+                </div>
+              </div>
+              
+              <div className="mt-3 text-xs text-green-300/70">
+                <div className="flex justify-between items-center">
+                  <span>Discord Token Status:</span>
                   <span className="px-2 py-1 bg-gray-800 rounded flex items-center">
                     <div className={`h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'} mr-2`}></div>
-                    DISCORD TOKEN = SETTING IN ENV
+                    {connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-green-300/60">
                   {connectionStatus === 'connected' 
-                    ? 'Token is valid and connection is active' 
+                    ? 'Discord connection active - your presence will stay online' 
                     : connectionStatus === 'connecting' 
-                    ? 'Connecting to Discord...' 
-                    : 'Token may be invalid or connection is disrupted'}
+                    ? 'Connecting to Discord... please wait' 
+                    : 'Discord connection inactive - check your token'}
                 </p>
               </div>
             </div>
