@@ -71,15 +71,27 @@ export default function AccountStatusCard() {
 
   const currentStatusStyle = getCurrentStatusStyle();
 
+  // Determine if there's a token error
+  const connectionStatus = statusData?.status?.connectionStatus || 'disconnected';
+  const hasTokenError = connectionStatus === 'error';
+
   return (
     <Card className="bg-discord-surface rounded-lg shadow-lg overflow-hidden">
       <div className="p-4 border-b border-gray-800 flex justify-between items-center">
         <h2 className="text-lg font-medium">Account Status</h2>
-        <Switch 
-          checked={isAccountActive}
-          onCheckedChange={handleToggleAccountStatus}
-          disabled={isLoading}
-        />
+        <div className="flex items-center gap-2">
+          {/* Connection status indicator */}
+          <div className={`h-2.5 w-2.5 rounded-full ${
+            connectionStatus === 'connected' ? 'bg-green-500' : 
+            connectionStatus === 'connecting' ? 'bg-yellow-500' : 
+            connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+          }`}></div>
+          <Switch 
+            checked={isAccountActive}
+            onCheckedChange={handleToggleAccountStatus}
+            disabled={isLoading}
+          />
+        </div>
       </div>
       
       <div className="p-5">
@@ -100,6 +112,20 @@ export default function AccountStatusCard() {
               <Skeleton className="h-10 w-full" />
             </div>
           </div>
+        ) : hasTokenError ? (
+          <div className="p-4 rounded-lg bg-red-950/30 border border-red-950 mb-4">
+            <h3 className="text-red-400 font-medium">Discord Token Error</h3>
+            <p className="mt-2 text-sm">Your Discord token is invalid or has expired. Please update your token in the environment settings.</p>
+            <div className="mt-3 text-xs text-discord-muted">
+              <p className="mb-1">To get a valid token:</p>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>Open Discord in your web browser</li>
+                <li>Press F12 to open developer tools</li>
+                <li>Go to Application tab → Local Storage → discord.com</li>
+                <li>Find the entry named "token" and copy its value</li>
+              </ol>
+            </div>
+          </div>
         ) : (
           <>
             {/* User Profile Section */}
@@ -118,11 +144,25 @@ export default function AccountStatusCard() {
                 )}
               </div>
               <div className="ml-3">
-                <div className="font-medium">{statusData?.user?.username || 'Username'}</div>
+                <div className="font-medium">{statusData?.user?.username || 'Not connected'}</div>
                 <div className="text-discord-muted text-sm">
-                  {statusData?.user?.discriminator ? `#${statusData.user.discriminator}` : ''}
+                  {statusData?.user?.discriminator ? `#${statusData.user.discriminator}` : 'Check Discord token'}
                 </div>
               </div>
+            </div>
+
+            {/* Connection Status */}
+            <div className="py-2 px-3 rounded bg-gray-800 mb-4 flex items-center justify-between">
+              <span className="text-sm">Connection Status</span>
+              <span className={`text-sm ${
+                connectionStatus === 'connected' ? 'text-green-400' : 
+                connectionStatus === 'connecting' ? 'text-yellow-400' : 
+                connectionStatus === 'error' ? 'text-red-400' : 'text-gray-400'
+              }`}>
+                {connectionStatus === 'connected' ? 'Connected' : 
+                 connectionStatus === 'connecting' ? 'Connecting...' : 
+                 connectionStatus === 'error' ? 'Connection Error' : 'Disconnected'}
+              </span>
             </div>
 
             {/* Status Selection */}
@@ -134,6 +174,7 @@ export default function AccountStatusCard() {
                     key={option.key}
                     className={`py-2 px-3 rounded flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 transition-colors focus:outline-none ${statusMode === option.key ? 'ring-2 ring-discord-blue' : ''}`}
                     onClick={() => handleStatusModeChange(option.key)}
+                    disabled={connectionStatus !== 'connected'}
                   >
                     <span className={`h-3 w-3 rounded-full ${option.color}`}></span>
                     <span>{option.label}</span>
