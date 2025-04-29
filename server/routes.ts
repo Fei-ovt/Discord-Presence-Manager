@@ -151,18 +151,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // This ensures the app stays active without holding up the response
     setTimeout(async () => {
       try {
-        // Check if Discord client is healthy
+        console.log('Health endpoint pinged, checking Discord status...');
+        // Check if Discord client is healthy and should be active
         const status = await storage.getDiscordStatus();
+        
         if (status?.isAccountActive) {
           // Trigger a background check of the Discord connection
-          getDiscordStatus().catch(err => {
-            console.error('Background Discord status check failed:', err);
-          });
+          const discordStatus = await getDiscordStatus();
+          
+          // If we're not connected but should be, force a reconnection
+          if (discordStatus?.status?.connectionStatus !== 'connected') {
+            console.log('Health check detected Discord client needs reconnection');
+            // Import and use the reconnectClient function from discord.ts
+            const { reconnectClient } = await import('./discord');
+            await reconnectClient();
+            
+            // Add an activity log
+            await storage.addActivityLog({
+              type: "system",
+              message: "Health check triggered Discord reconnection"
+            });
+          } else {
+            console.log('Health check confirmed Discord client is active');
+          }
         }
       } catch (error) {
         console.error('Error in health check background process:', error);
+        
+        // Try a reconnection anyway if there was an error
+        try {
+          const { reconnectClient } = await import('./discord');
+          await reconnectClient();
+          
+          await storage.addActivityLog({
+            type: "system",
+            message: "Health check triggered recovery reconnection after error"
+          });
+        } catch (reconnectError) {
+          console.error('Failed to reconnect after health check error:', reconnectError);
+        }
       }
-    }, 500);
+    }, 100); // Reduced timeout to run sooner after response is sent
   });
   
   // Initialize Discord client - may be null if token is invalid or Discord is unavailable

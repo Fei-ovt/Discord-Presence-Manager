@@ -45,6 +45,9 @@ export default function Dashboard() {
     }
   }, [websocketStatus, isConnecting, toast, hasShownWebsocketInfo]);
 
+  // Display alert if we're not connected to WebSocket but Discord is active
+  const showConnectionAlert = websocketStatus === 'disconnected' && connectionStatus === 'connected';
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -59,6 +62,27 @@ export default function Dashboard() {
           <ConnectionStatus status={connectionStatus} />
         </div>
       </header>
+
+      {/* Connection Alert Banner */}
+      {showConnectionAlert && (
+        <div className="bg-blue-900/30 border border-blue-800 text-blue-300 p-3 mb-2">
+          <div className="container mx-auto flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              <InfoIcon className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-medium text-blue-400">UI Connection Status</h3>
+              <p className="mt-1 text-sm">
+                Your app has disconnected from the server UI, but your Discord presence remains online! 
+                This is normal when closing the app or losing internet connection.
+              </p>
+              <p className="mt-2 text-xs text-blue-400">
+                As long as UptimeRobot is monitoring your app, your Discord presence will stay active 24/7.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-grow container mx-auto p-4 md:p-6">
