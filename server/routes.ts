@@ -87,6 +87,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update storage
       await storage.updateDiscordStatus({ isAccountActive: isActive });
       
+      // Apply the status change in Discord
+      if (!isActive) {
+        // If deactivating, set status to invisible
+        try {
+          await setStatusMode('invisible');
+        } catch (statusErr) {
+          console.error('Error setting status to invisible when deactivating account:', statusErr);
+          // Continue anyway as we still want to update the storage
+        }
+      } else {
+        // If activating, get the stored status mode and apply it
+        try {
+          const storedStatus = await storage.getDiscordStatus();
+          if (storedStatus && storedStatus.statusMode) {
+            await setStatusMode(storedStatus.statusMode);
+          } else {
+            // Default to online if no stored status
+            await setStatusMode('online');
+          }
+        } catch (statusErr) {
+          console.error('Error restoring status when activating account:', statusErr);
+          // Continue anyway as we still want to update the storage
+        }
+      }
+      
       const status = await getDiscordStatus();
       
       // Log activity

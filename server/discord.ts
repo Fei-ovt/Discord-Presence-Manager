@@ -294,16 +294,78 @@ export async function setStatusMode(mode: string) {
       mode === 'dnd' ? 'dnd' :
       'invisible';
     
-    // Update presence
-    await client.user.setStatus(presenceStatus);
+    // Update presence with multiple approaches
+    console.log(`Setting Discord status to: ${presenceStatus}`);
     
-    // Log status change
+    // Try different ways to set the status based on the Discord.js version being used
+    // Approach 1: Direct user.setStatus method
+    try {
+      await client.user.setStatus(presenceStatus);
+      console.log('Status set using client.user.setStatus');
+    } catch (err) {
+      console.error('Error setting status with client.user.setStatus:', err);
+      
+      // Approach 2: Via presence
+      try {
+        await client.user.setPresence({ 
+          status: presenceStatus
+        });
+        console.log('Status set using client.user.setPresence');
+      } catch (presenceErr) {
+        console.error('Error setting status with setPresence:', presenceErr);
+        
+        // Approach 3: Manual presence update if available
+        if (typeof client.ws === 'object' && client.ws !== null) {
+          try {
+            // Try different WebSocket approaches depending on client implementation
+            if (typeof client.ws.send === 'function') {
+              client.ws.send({
+                op: 3, // Status Update opcode
+                d: {
+                  status: presenceStatus,
+                  since: 0,
+                  activities: [],
+                  afk: false
+                }
+              });
+              console.log('Status set using direct websocket send');
+            } else if (client.ws.socket && typeof client.ws.socket.send === 'function') {
+              client.ws.socket.send(JSON.stringify({
+                op: 3,
+                d: {
+                  status: presenceStatus,
+                  since: 0,
+                  activities: [],
+                  afk: false
+                }
+              }));
+              console.log('Status set using socket send');
+            } else if (client.ws.connection && typeof client.ws.connection.send === 'function') {
+              client.ws.connection.send(JSON.stringify({
+                op: 3,
+                d: {
+                  status: presenceStatus,
+                  since: 0,
+                  activities: [],
+                  afk: false
+                }
+              }));
+              console.log('Status set using connection send');
+            }
+          } catch (wsErr) {
+            console.error('Error setting status via WebSocket:', wsErr);
+          }
+        }
+      }
+    }
+    
+    // Log status change in our system
     await storage.addActivityLog({
       type: 'status',
       message: `Status changed to ${mode}`
     });
     
-    // Broadcast status update
+    // Broadcast status update to clients
     const status = await getStatusUpdate();
     broadcastStatus({
       ...status,
