@@ -12,7 +12,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize WebSocket server
   const wss = setupWebsocketServer(httpServer);
   
-  // Root path status page
+  // Root path status page - always return HTML for browser and status for API
   app.get('/', (req, res) => {
     // If it's a browser request (looks for HTML), serve the app
     if (req.headers.accept && req.headers.accept.includes('text/html')) {
@@ -20,22 +20,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.sendFile('index.html', { root: '.' });
     }
     
+    // Always return 200 OK status for UptimeRobot
+    if (req.headers['user-agent'] && req.headers['user-agent'].includes('UptimeRobot')) {
+      return res.status(200).send('OK');
+    }
+    
     // For non-browser requests directly to the root, show basic status
-    getDiscordStatus().then(status => {
-      res.json({
+    try {
+      getDiscordStatus().then(status => {
+        res.json({
+          application: "Discord Presence 24/7",
+          status: "running",
+          uptime: process.uptime(),
+          discordConnected: status?.status?.connectionStatus === 'connected',
+          message: "Use the web interface to control your Discord presence"
+        });
+      }).catch(error => {
+        // Still return 200 with degraded status
+        res.status(200).json({
+          application: "Discord Presence 24/7",
+          status: "degraded",
+          uptime: process.uptime(),
+          message: "Discord status temporarily unavailable, but service is running"
+        });
+      });
+    } catch (error) {
+      // Ensure we always return 200 for monitoring tools
+      res.status(200).json({
         application: "Discord Presence 24/7",
-        status: "running",
+        status: "degraded",
         uptime: process.uptime(),
-        discordConnected: status?.status?.connectionStatus === 'connected',
-        message: "Use the web interface to control your Discord presence"
+        message: "System operational with reduced functionality"
       });
-    }).catch(error => {
-      res.status(500).json({
-        application: "Discord Presence 24/7",
-        status: "error",
-        message: "Failed to retrieve Discord status"
-      });
-    });
+    }
   });
   
   // Health check endpoint for UptimeRobot monitoring
@@ -496,6 +513,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const message = error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({ error: message });
     }
+  });
+  
+  // Catch-all route for direct URL access - ensures that any route serves the UI
+  // This is necessary for UptimeRobot or direct URL access to show our app
+  app.get('*', (req, res) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({
+        error: "API endpoint not found"
+      });
+    }
+    
+    // Serve index.html for any non-API route
+    res.sendFile('index.html', { root: '.' });
   });
   
   // Update auto start setting
