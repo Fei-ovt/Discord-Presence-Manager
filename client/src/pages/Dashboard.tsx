@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import AccountStatusCard from '@/components/AccountStatusCard';
@@ -6,27 +6,44 @@ import VoiceConnectionCard from '@/components/VoiceConnectionCard';
 import SettingsAndLogsCard from '@/components/SettingsAndLogsCard';
 import { useDiscordStatus } from '@/hooks/useDiscordStatus';
 import { useWebsocket } from '@/lib/websocket';
+import { AlertCircle, InfoIcon } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const { status, isConnecting } = useWebsocket();
+  const { status: websocketStatus, isConnecting } = useWebsocket();
   const { 
     connectionStatus, 
     uptime, 
     error,
     isLoading
   } = useDiscordStatus();
+  
+  // Store if we've shown the WebSocket info message
+  const [hasShownWebsocketInfo, setHasShownWebsocketInfo] = useState(false);
 
-  // Handle connection errors
+  // Handle Discord connection errors (not WebSocket errors)
   useEffect(() => {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Connection Error",
+        title: "Discord Connection Error",
         description: error.message || "Failed to connect to Discord. Please check your token."
       });
     }
   }, [error, toast]);
+  
+  // Handle WebSocket disconnections with a friendlier message
+  useEffect(() => {
+    if (websocketStatus === 'disconnected' && !isConnecting && !hasShownWebsocketInfo) {
+      setHasShownWebsocketInfo(true);
+      toast({
+        title: "UI Connection Status",
+        description: "Your app has disconnected from the server UI but your Discord presence remains online. This is expected when closing the app or losing internet connection.",
+        duration: 8000, // Show longer than default
+      });
+    }
+  }, [websocketStatus, isConnecting, toast, hasShownWebsocketInfo]);
 
   return (
     <div className="min-h-screen flex flex-col">
