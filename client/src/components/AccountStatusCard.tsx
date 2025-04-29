@@ -135,10 +135,28 @@ export default function AccountStatusCard() {
     { key: 'dnd', label: 'Do Not Disturb', color: 'bg-discord-dnd' },
     { key: 'invisible', label: 'Invisible', color: 'bg-discord-invisible' }
   ];
+  
+  // Smoothed status indicator - add a delay to prevent flickering during transitions
+  const [smoothedStatusMode, setSmoothedStatusMode] = useState<'online' | 'idle' | 'dnd' | 'invisible'>(
+    localStatusMode
+  );
+  
+  // Add a delay to status changes to prevent flickering during transitions
+  useEffect(() => {
+    if (localStatusMode) {
+      // Use a longer delay to ensure the backend has fully transitioned
+      const timer = setTimeout(() => {
+        setSmoothedStatusMode(localStatusMode);
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [localStatusMode]);
 
-  // Get status text and color for current status indicator - use local state for instant updates
+  // Get status text and color for current status indicator - use smoothed state to prevent flickering
   const getCurrentStatusStyle = () => {
-    const option = statusOptions.find(opt => opt.key === localStatusMode);
+    // Use the smoothed status for display to prevent flickering
+    const option = statusOptions.find(opt => opt.key === smoothedStatusMode);
     return {
       text: option?.label || 'Unknown',
       color: `text-${option?.color.replace('bg-', '') || 'discord-muted'}`
