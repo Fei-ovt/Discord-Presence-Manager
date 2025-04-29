@@ -37,37 +37,77 @@ export default function AccountStatusCard() {
     setLocalStatusMode(statusMode);
   }, [isAccountActive, statusMode]);
 
+  // Track if account toggling is in progress
+  const [isTogglingAccount, setIsTogglingAccount] = useState(false);
+
   const handleToggleAccountStatus = async (checked: boolean) => {
-    // Update local state immediately
+    // Prevent multiple rapid toggles
+    if (isTogglingAccount) {
+      return;
+    }
+    
+    // Start toggling and update local state immediately
+    setIsTogglingAccount(true);
     setLocalAccountActive(checked);
     
     try {
-      await apiRequest('POST', '/api/discord/account-status', { isActive: checked });
-      queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      toast({
-        title: "Account Status Updated",
-        description: `Account is now ${checked ? 'active' : 'inactive'}`
-      });
+      // Update with a slight UI delay to make toggle feel responsive
+      setTimeout(async () => {
+        try {
+          await apiRequest('POST', '/api/discord/account-status', { isActive: checked });
+          queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+          toast({
+            title: "Account Status Updated",
+            description: `Account is now ${checked ? 'active' : 'inactive'}`
+          });
+        } catch (err) {
+          // Revert local state on error
+          setLocalAccountActive(!checked);
+          toast({
+            variant: "destructive",
+            title: "Failed to update account status",
+            description: err instanceof Error ? err.message : "Unknown error occurred"
+          });
+        } finally {
+          // Ensure we always end toggling state
+          setIsTogglingAccount(false);  
+        }
+      }, 300);  
     } catch (err) {
-      // Revert local state on error
+      // In case the timeout somehow fails
+      setIsTogglingAccount(false);
       setLocalAccountActive(!checked);
-      toast({
-        variant: "destructive",
-        title: "Failed to update account status",
-        description: err instanceof Error ? err.message : "Unknown error occurred"
-      });
     }
   };
 
   const handleStatusModeChange = async (newStatus: 'online' | 'idle' | 'dnd' | 'invisible') => {
+    // Prevent rapid clicking by ignoring if we're already changing
+    if (isChangingStatus) {
+      return;
+    }
+    
+    // If we're already in this status, do nothing
+    if (localStatusMode === newStatus) {
+      return;
+    }
+    
     // Set local loading state for this specific button
     setIsChangingStatus(newStatus);
-    // Update local status immediately
+    
+    // Update local status immediately for instant UI feedback
     setLocalStatusMode(newStatus);
     
     try {
-      await apiRequest('POST', '/api/discord/status-mode', { mode: newStatus });
+      const response = await apiRequest('POST', '/api/discord/status-mode', { mode: newStatus });
+      
+      // Add a slight delay to avoid flickering UI and ensure full 
+      // visibility of the state change before removing loading spinner
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Forced refresh status after change
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+      
+      // Show success toast
       toast({
         title: "Status Updated",
         description: `Status changed to ${newStatus}`
@@ -75,13 +115,16 @@ export default function AccountStatusCard() {
     } catch (err) {
       // Revert to previous status on error
       setLocalStatusMode(statusMode as 'online' | 'idle' | 'dnd' | 'invisible');
+      
+      // Show error toast
       toast({
         variant: "destructive",
         title: "Failed to update status",
         description: err instanceof Error ? err.message : "Unknown error occurred"
       });
     } finally {
-      setIsChangingStatus(null);
+      // Only clear loading state after everything is done
+      setTimeout(() => setIsChangingStatus(null), 300);
     }
   };
 
