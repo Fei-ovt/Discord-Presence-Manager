@@ -408,20 +408,31 @@ export async function connectToVoice(channelId: string) {
   } catch (error) {
     // Log error
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    let userFriendlyMessage = errorMessage;
+    
+    // Special handling for common errors with more helpful guidance
+    if (errorMessage.includes('permission') || errorMessage.includes('Permission')) {
+      userFriendlyMessage = 'You do not have permission to join this voice channel. Please check that:\n' +
+        '- The channel ID is correct\n' +
+        '- Your Discord account has access to this channel\n' +
+        '- You have joined the server containing this channel\n' +
+        '- Your Discord token has the necessary permissions';
+    }
     
     await storage.addActivityLog({
       type: 'error',
-      message: `Failed to connect to voice channel: ${errorMessage}`
+      message: `Failed to connect to voice channel: ${userFriendlyMessage}`
     });
     
-    // Broadcast status update
+    // Broadcast status update with the more user-friendly error message
     const status = await getStatusUpdate();
     broadcastStatus({
       ...status,
-      voiceStatus: 'error' as 'connected' | 'disconnected' | 'connecting' | 'error'
+      voiceStatus: 'error' as 'connected' | 'disconnected' | 'connecting' | 'error',
+      error: userFriendlyMessage
     });
     
-    throw error;
+    throw new Error(userFriendlyMessage);
   }
 }
 
