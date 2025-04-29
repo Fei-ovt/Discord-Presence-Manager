@@ -232,11 +232,11 @@ export default function VoiceConnectionCard() {
             description: "Server reported an error during disconnect"
           });
         }
-      } catch (fetchErr) {
+      } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         
         // Handle abort or network errors
-        if (fetchErr.name === 'AbortError') {
+        if (fetchErr?.name === 'AbortError') {
           console.log('Disconnect request took too long but may still complete');
           
           toast({
