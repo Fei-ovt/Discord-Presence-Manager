@@ -39,8 +39,9 @@ UptimeRobot is a free service that pings your application every 5 minutes to kee
    - **Friendly Name**: Enter "Discord Presence App" (or any name you prefer)
    - **URL/IP**: Enter your Replit deployment URL plus the health check endpoint:
      ```
-     https://your-app-name.username.repl.co/api/health
+     https://5b2f0d7c-bce7-4a0e-ba88-041c07291bb0-00-2br1oktguf58m.picard.replit.dev/health
      ```
+     If you're using a different Replit deployment, the URL will be in your browser's address bar.
    - **Monitoring Interval**: Select 5 minutes (the default)
    - **Monitor Timeout**: Leave at the default (30 seconds)
    - **HTTP Method**: GET (default)
@@ -70,9 +71,13 @@ UptimeRobot is a free service that pings your application every 5 minutes to kee
 3. Set up multiple monitors for extra reliability (Optional)
    - Create a second monitor pointing to the root URL:
      ```
-     https://your-app-name.username.repl.co/
+     https://5b2f0d7c-bce7-4a0e-ba88-041c07291bb0-00-2br1oktguf58m.picard.replit.dev/
      ```
-   - This provides redundancy in case one endpoint has issues
+   - You should also set up a third monitor with the /api/health endpoint:
+     ```
+     https://5b2f0d7c-bce7-4a0e-ba88-041c07291bb0-00-2br1oktguf58m.picard.replit.dev/api/health
+     ```
+   - These multiple monitors provide redundancy in case one endpoint has issues
 
 ## Step 4: Maintaining Your 24/7 Presence
 
@@ -98,13 +103,27 @@ UptimeRobot is a free service that pings your application every 5 minutes to kee
    - Look for error messages in your Replit console
    - Ensure your Discord token is valid and properly set
 
-2. **Discord status not staying persistent**
+2. **"Disconnected from server. Reconnecting..." Error**
+   - This is normal when closing the Replit environment - the application is trying to reconnect
+   - As long as UptimeRobot is monitoring your app, it will keep pinging and wake up the application
+   - If you see this message constantly, check if:
+     * Your Replit application is properly deployed
+     * UptimeRobot is correctly configured with your URL
+     * Your Replit account has enough monthly hours remaining
+
+3. **Discord status not staying persistent**
    - Check UptimeRobot logs for any downtime periods
    - Verify the auto-reconnect feature is enabled in your app settings
    - Check your Discord account for any unusual login activity
    - Try setting a different status mode (sometimes changing status can reset connections)
 
-3. **Replit application errors**
+4. **404 Page Not Found Error**
+   - If you see "404 Page Not Found" when accessing your URL, it means the application isn't serving HTML correctly
+   - Make sure to use the exact URL from your Replit deployment
+   - Try accessing the /health endpoint directly: `https://your-app-url/health`
+   - If problems persist, redeploy your application in Replit
+
+5. **Replit application errors**
    - Check the Replit console for error messages
    - Ensure your DISCORD_TOKEN is correctly set in Replit Secrets
    - Try restarting and redeploying your application
