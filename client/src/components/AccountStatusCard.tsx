@@ -17,8 +17,24 @@ export default function AccountStatusCard() {
     isLoading, 
     error 
   } = useDiscordStatus();
+  
+  // Local states for immediate UI feedback
+  const [localAccountActive, setLocalAccountActive] = useState(isAccountActive);
+  const [localStatusMode, setLocalStatusMode] = useState<'online' | 'idle' | 'dnd' | 'invisible'>(
+    statusMode as 'online' | 'idle' | 'dnd' | 'invisible'
+  );
+  const [isChangingStatus, setIsChangingStatus] = useState<string | null>(null);
+  
+  // Update local state when props change from server
+  useEffect(() => {
+    setLocalAccountActive(isAccountActive);
+    setLocalStatusMode(statusMode);
+  }, [isAccountActive, statusMode]);
 
   const handleToggleAccountStatus = async (checked: boolean) => {
+    // Update local state immediately
+    setLocalAccountActive(checked);
+    
     try {
       await apiRequest('POST', '/api/discord/account-status', { isActive: checked });
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -27,6 +43,8 @@ export default function AccountStatusCard() {
         description: `Account is now ${checked ? 'active' : 'inactive'}`
       });
     } catch (err) {
+      // Revert local state on error
+      setLocalAccountActive(!checked);
       toast({
         variant: "destructive",
         title: "Failed to update account status",
@@ -35,7 +53,12 @@ export default function AccountStatusCard() {
     }
   };
 
-  const handleStatusModeChange = async (newStatus: string) => {
+  const handleStatusModeChange = async (newStatus: 'online' | 'idle' | 'dnd' | 'invisible') => {
+    // Set local loading state for this specific button
+    setIsChangingStatus(newStatus);
+    // Update local status immediately
+    setLocalStatusMode(newStatus);
+    
     try {
       await apiRequest('POST', '/api/discord/status-mode', { mode: newStatus });
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
@@ -44,25 +67,29 @@ export default function AccountStatusCard() {
         description: `Status changed to ${newStatus}`
       });
     } catch (err) {
+      // Revert to previous status on error
+      setLocalStatusMode(statusMode as 'online' | 'idle' | 'dnd' | 'invisible');
       toast({
         variant: "destructive",
         title: "Failed to update status",
         description: err instanceof Error ? err.message : "Unknown error occurred"
       });
+    } finally {
+      setIsChangingStatus(null);
     }
   };
 
-  // Status options for the buttons
-  const statusOptions = [
+  // Status options for the buttons with proper typing
+  const statusOptions: {key: 'online' | 'idle' | 'dnd' | 'invisible', label: string, color: string}[] = [
     { key: 'online', label: 'Online', color: 'bg-discord-online' },
     { key: 'idle', label: 'Idle', color: 'bg-discord-idle' },
     { key: 'dnd', label: 'Do Not Disturb', color: 'bg-discord-dnd' },
     { key: 'invisible', label: 'Invisible', color: 'bg-discord-invisible' }
   ];
 
-  // Get status text and color for current status indicator
+  // Get status text and color for current status indicator - use local state for instant updates
   const getCurrentStatusStyle = () => {
-    const option = statusOptions.find(opt => opt.key === statusMode);
+    const option = statusOptions.find(opt => opt.key === localStatusMode);
     return {
       text: option?.label || 'Unknown',
       color: `text-${option?.color.replace('bg-', '') || 'discord-muted'}`
@@ -71,8 +98,8 @@ export default function AccountStatusCard() {
 
   const currentStatusStyle = getCurrentStatusStyle();
 
-  // Determine if there's a token error
-  const connectionStatus = statusData?.status?.connectionStatus || 'disconnected';
+  // Determine if there's a token error with proper typing
+  const connectionStatus = (statusData?.status?.connectionStatus || 'disconnected') as 'connected' | 'connecting' | 'disconnected' | 'error';
   const hasTokenError = connectionStatus === 'error';
 
   return (
@@ -87,7 +114,7 @@ export default function AccountStatusCard() {
             connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
           }`}></div>
           <Switch 
-            checked={isAccountActive}
+            checked={localAccountActive}
             onCheckedChange={handleToggleAccountStatus}
             disabled={isLoading}
           />
@@ -169,17 +196,25 @@ export default function AccountStatusCard() {
             <div className="mb-4">
               <label className="block text-discord-muted mb-2 text-sm font-medium">Status Mode</label>
               <div className="grid grid-cols-2 gap-2">
-                {statusOptions.map((option) => (
-                  <button 
-                    key={option.key}
-                    className={`py-2 px-3 rounded flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 transition-colors focus:outline-none ${statusMode === option.key ? 'ring-2 ring-discord-blue' : ''}`}
-                    onClick={() => handleStatusModeChange(option.key)}
-                    disabled={connectionStatus !== 'connected'}
-                  >
-                    <span className={`h-3 w-3 rounded-full ${option.color}`}></span>
-                    <span>{option.label}</span>
-                  </button>
-                ))}
+                {statusOptions.map((option) => {
+                  const isChanging = isChangingStatus === option.key;
+                  
+                  return (
+                    <button 
+                      key={option.key}
+                      className={`py-2 px-3 rounded flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 transition-colors focus:outline-none ${localStatusMode === option.key ? 'ring-2 ring-discord-blue' : ''}`}
+                      onClick={() => handleStatusModeChange(option.key)}
+                      disabled={connectionStatus !== 'connected' || isChanging}
+                    >
+                      {isChanging ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-opacity-50 border-t-transparent"></div>
+                      ) : (
+                        <span className={`h-3 w-3 rounded-full ${option.color}`}></span>
+                      )}
+                      <span>{option.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
