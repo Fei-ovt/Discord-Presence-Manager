@@ -938,7 +938,9 @@ export async function disconnectFromVoice() {
                 messageCacheMaxSize: 50,
                 ws: {
                   properties: {
-                    $browser: 'Discord Android', // Use mobile client identification
+                    $browser: 'Chrome',
+                    $device: 'Windows',
+                    $os: 'Windows 10'
                   },
                 },
               });

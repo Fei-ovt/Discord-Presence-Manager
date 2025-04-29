@@ -84,17 +84,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({ isActive: z.boolean() });
       const { isActive } = schema.parse(req.body);
       
-      // Update storage
+      // Update storage immediately for responsive UI feedback
       await storage.updateDiscordStatus({ isAccountActive: isActive });
       
-      // Apply the status change in Discord
+      // Log activity immediately
+      await storage.addActivityLog({
+        type: "status",
+        message: `Account status changing to ${isActive ? 'active' : 'inactive'}`
+      });
+      
+      // Get current status for immediate response
+      const currentStatus = await getDiscordStatus();
+      
+      // Send immediate response for better UX
+      res.json(currentStatus);
+      
+      // Apply the status change in Discord (background process)
       if (!isActive) {
         // If deactivating, set status to invisible
         try {
           await setStatusMode('invisible');
+          
+          // Log success
+          await storage.addActivityLog({
+            type: "status",
+            message: `Account deactivated and set to invisible`
+          });
         } catch (statusErr) {
           console.error('Error setting status to invisible when deactivating account:', statusErr);
-          // Continue anyway as we still want to update the storage
+          
+          // Log error
+          await storage.addActivityLog({
+            type: "error",
+            message: `Failed to set status to invisible: ${statusErr instanceof Error ? statusErr.message : "Unknown error"}`
+          });
         }
       } else {
         // If activating, get the stored status mode and apply it
@@ -102,25 +125,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const storedStatus = await storage.getDiscordStatus();
           if (storedStatus && storedStatus.statusMode) {
             await setStatusMode(storedStatus.statusMode);
+            
+            // Log success
+            await storage.addActivityLog({
+              type: "status",
+              message: `Account activated and status restored to ${storedStatus.statusMode}`
+            });
           } else {
             // Default to online if no stored status
             await setStatusMode('online');
+            
+            // Log success
+            await storage.addActivityLog({
+              type: "status",
+              message: `Account activated and set to online (default)`
+            });
           }
         } catch (statusErr) {
           console.error('Error restoring status when activating account:', statusErr);
-          // Continue anyway as we still want to update the storage
+          
+          // Log error
+          await storage.addActivityLog({
+            type: "error",
+            message: `Failed to restore status: ${statusErr instanceof Error ? statusErr.message : "Unknown error"}`
+          });
         }
       }
-      
-      const status = await getDiscordStatus();
-      
-      // Log activity
-      await storage.addActivityLog({
-        type: "status",
-        message: `Account status set to ${isActive ? 'active' : 'inactive'}`
-      });
-      
-      res.json(status);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({ error: message });
@@ -139,19 +169,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({ mode: z.enum(["online", "idle", "dnd", "invisible"]) });
       const { mode } = schema.parse(req.body);
       
-      // Update mode in Discord
-      await setStatusMode(mode);
-      
-      // Update storage
+      // Update storage first (for immediate UI feedback)
       await storage.updateDiscordStatus({ statusMode: mode });
       
-      // Log activity
+      // Start status update in Discord in background
+      const statusPromise = setStatusMode(mode);
+      
+      // Log activity immediately
       await storage.addActivityLog({
         type: "status",
-        message: `Status mode changed to ${mode}`
+        message: `Status mode changing to ${mode}`
       });
       
+      // Send immediate success response for better UX
       res.json({ success: true, mode });
+      
+      // Continue with the actual status update in the background
+      try {
+        await statusPromise;
+        
+        // Log successful completion
+        await storage.addActivityLog({
+          type: "status",
+          message: `Status mode changed to ${mode}`
+        });
+      } catch (statusError) {
+        console.error('Background status update failed:', statusError);
+        
+        // Log error
+        await storage.addActivityLog({
+          type: "error",
+          message: `Status mode change to ${mode} failed: ${statusError instanceof Error ? statusError.message : "Unknown error"}`
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({ error: message });
