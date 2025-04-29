@@ -268,9 +268,10 @@ export default function AccountStatusCard() {
                   return (
                     <button 
                       key={option.key}
-                      className={`py-2 px-3 rounded flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 transition-colors focus:outline-none ${localStatusMode === option.key ? 'ring-2 ring-discord-blue' : ''}`}
+                      className={`py-3 px-4 rounded-xl flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 transition-colors focus:outline-none ${localStatusMode === option.key ? 'ring-2 ring-discord-blue' : ''}`}
                       onClick={() => handleStatusModeChange(option.key)}
                       disabled={connectionStatus !== 'connected' || isChanging}
+                      style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}
                     >
                       {isChanging ? (
                         <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-opacity-50 border-t-transparent"></div>

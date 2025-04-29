@@ -333,11 +333,13 @@ export default function VoiceConnectionCard() {
                   value={channelIdInput}
                   onChange={(e) => setChannelIdInput(e.target.value)}
                   placeholder="Enter channel ID"
-                  className="w-full px-4 py-2 bg-gray-800 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-discord-blue focus:border-transparent pr-11"
+                  className="w-full px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-discord-blue focus:border-transparent pr-11"
+                  style={{ boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)' }}
                 />
                 <Button
                   size="icon"
-                  className="absolute right-1 top-1 bg-discord-blue text-white p-1.5 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
+                  className="absolute right-1 top-1 bg-discord-blue text-white p-1.5 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
+                  style={{ boxShadow: '0 2px 3px rgba(0, 0, 0, 0.2)' }}
                   onClick={handleSaveChannelId}
                   disabled={!channelIdInput.trim()}
                 >
@@ -358,7 +360,8 @@ export default function VoiceConnectionCard() {
             {/* Connection Controls */}
             <div className="grid grid-cols-2 gap-3 mt-6">
               <Button
-                className="py-2.5 px-4 bg-discord-blue text-white rounded flex items-center justify-center space-x-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
+                className="py-3 px-4 bg-discord-blue text-white rounded-xl flex items-center justify-center space-x-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
+                style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}
                 onClick={handleConnectVoice}
                 disabled={!localVoiceActive || !channelId || isConnecting || localVoiceStatus === 'connected'}
               >
@@ -371,7 +374,8 @@ export default function VoiceConnectionCard() {
               </Button>
               <Button
                 variant="secondary"
-                className="py-2.5 px-4 bg-gray-700 text-white rounded flex items-center justify-center space-x-2 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="py-3 px-4 bg-gray-700 text-white rounded-xl flex items-center justify-center space-x-2 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}
                 onClick={handleDisconnectVoice}
                 disabled={localVoiceStatus !== 'connected' || isDisconnecting}
               >
