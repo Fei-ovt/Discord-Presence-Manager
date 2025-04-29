@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,43 +40,94 @@ export default function SettingsAndLogsCard() {
     }
   }, [error, toast]);
 
+  // State for local toggle button values - for immediate UI feedback
+  const [localNotifications, setLocalNotifications] = useState(systemNotifications);
+  const [localAutoStart, setLocalAutoStart] = useState(autoStart);
+  
+  // Track toggle states for UI responsiveness
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [isTogglingAutoStart, setIsTogglingAutoStart] = useState(false);
+  
+  // Keep local state in sync with the server state
+  useEffect(() => {
+    setLocalNotifications(systemNotifications);
+    setLocalAutoStart(autoStart);
+  }, [systemNotifications, autoStart]);
+
   const handleToggleNotifications = async (checked: boolean) => {
-    try {
-      await apiRequest('POST', '/api/discord/notifications', { enabled: checked });
-      queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      toast({
-        title: "Notifications Updated",
-        description: `System notifications are now ${checked ? 'enabled' : 'disabled'}`
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Failed to update notifications",
-        description: err instanceof Error ? err.message : "Unknown error occurred"
-      });
+    // Prevent rapid toggling
+    if (isTogglingNotifications) {
+      return;
     }
+    
+    // Update local state immediately for responsive UI
+    setIsTogglingNotifications(true);
+    setLocalNotifications(checked);
+    
+    // Introduce a small delay before making the API call for better UX
+    setTimeout(async () => {
+      try {
+        await apiRequest('POST', '/api/discord/notifications', { enabled: checked });
+        queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+        toast({
+          title: "Notifications Updated",
+          description: `System notifications are now ${checked ? 'enabled' : 'disabled'}`
+        });
+      } catch (err) {
+        // Revert local state on error
+        setLocalNotifications(!checked);
+        toast({
+          variant: "destructive",
+          title: "Failed to update notifications",
+          description: err instanceof Error ? err.message : "Unknown error occurred"
+        });
+      } finally {
+        // Ensure we always end the toggling state
+        setIsTogglingNotifications(false);
+      }
+    }, 300);
   };
 
   const handleToggleAutoStart = async (checked: boolean) => {
-    try {
-      await apiRequest('POST', '/api/discord/auto-start', { enabled: checked });
-      queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      toast({
-        title: "Auto Start Updated",
-        description: `Auto-start on system boot is now ${checked ? 'enabled' : 'disabled'}`
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Failed to update auto start",
-        description: err instanceof Error ? err.message : "Unknown error occurred"
-      });
+    // Prevent rapid toggling
+    if (isTogglingAutoStart) {
+      return;
     }
+    
+    // Update local state immediately for responsive UI
+    setIsTogglingAutoStart(true);
+    setLocalAutoStart(checked);
+    
+    // Introduce a small delay before making the API call for better UX
+    setTimeout(async () => {
+      try {
+        await apiRequest('POST', '/api/discord/auto-start', { enabled: checked });
+        queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+        toast({
+          title: "Auto Start Updated",
+          description: `Auto-start on system boot is now ${checked ? 'enabled' : 'disabled'}`
+        });
+      } catch (err) {
+        // Revert local state on error
+        setLocalAutoStart(!checked);
+        toast({
+          variant: "destructive",
+          title: "Failed to update auto start",
+          description: err instanceof Error ? err.message : "Unknown error occurred"
+        });
+      } finally {
+        // Ensure we always end the toggling state
+        setIsTogglingAutoStart(false);
+      }
+    }, 300);
   };
 
   // Format log timestamp
-  const formatLogTime = (timestamp: Date | string) => {
+  const formatLogTime = (timestamp: Date | string | null) => {
     try {
+      if (!timestamp) {
+        return 'Unknown time';
+      }
       const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
       return format(date, "yyyy-MM-dd HH:mm:ss");
     } catch (error) {
@@ -137,16 +188,18 @@ export default function SettingsAndLogsCard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">System Notifications</span>
                 <Switch 
-                  checked={systemNotifications}
+                  checked={localNotifications}
                   onCheckedChange={handleToggleNotifications}
+                  disabled={isTogglingNotifications}
                 />
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Auto-start on System Boot</span>
                 <Switch 
-                  checked={autoStart}
+                  checked={localAutoStart}
                   onCheckedChange={handleToggleAutoStart}
+                  disabled={isTogglingAutoStart}
                 />
               </div>
             </div>
