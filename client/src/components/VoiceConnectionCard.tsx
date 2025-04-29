@@ -122,13 +122,54 @@ export default function VoiceConnectionCard() {
     setLocalVoiceStatus('connecting'); // Immediate feedback
     
     try {
+      // First, ensure we have a valid channel ID
+      if (!channelId) {
+        toast({
+          variant: "destructive",
+          title: "Missing Channel ID",
+          description: "Please enter and save a voice channel ID before connecting"
+        });
+        setLocalVoiceStatus('disconnected');
+        setIsConnecting(false);
+        return;
+      }
+      
+      // Make the connect request
       await apiRequest('POST', '/api/discord/connect-voice', {});
+      
+      // Invalidate queries to get the latest status
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      toast({
-        title: "Connecting to Voice Channel",
-        description: "Attempting to connect to the voice channel"
-      });
-      // We'll let the server update the actual status from the websocket
+      
+      // Verify connection took effect with a slight delay
+      setTimeout(async () => {
+        try {
+          const statusResponse = await fetch('/api/discord/status');
+          const statusData = await statusResponse.json();
+          
+          if (statusData?.status?.voiceStatus === 'connected') {
+            toast({
+              title: "Connected to Voice Channel",
+              description: `Successfully joined ${statusData?.status?.connectedChannel || 'voice channel'}`
+            });
+          } else if (statusData?.status?.voiceStatus === 'error') {
+            // Connection attempt failed, show the error message
+            toast({
+              variant: "destructive",
+              title: "Connection Failed",
+              description: statusData?.status?.error || "Unknown error connecting to voice channel"
+            });
+            // Reset the local status
+            setLocalVoiceStatus('disconnected');
+          } else {
+            toast({
+              title: "Connecting to Voice Channel",
+              description: "Attempting to connect to the voice channel"
+            });
+          }
+        } catch (verifyErr) {
+          console.error("Error verifying connection:", verifyErr);
+        }
+      }, 1500);
     } catch (err) {
       // Revert to previous state on error
       setLocalVoiceStatus('disconnected');
@@ -147,13 +188,54 @@ export default function VoiceConnectionCard() {
     setLocalVoiceStatus('disconnected'); // Immediate feedback
     
     try {
-      await apiRequest('POST', '/api/discord/disconnect-voice', {});
+      // Make multiple attempts to disconnect if needed
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!success && attempts < maxAttempts) {
+        attempts++;
+        try {
+          await apiRequest('POST', '/api/discord/disconnect-voice', {});
+          success = true;
+          
+          // Short delay to allow the server to process the disconnect
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          // Verify the disconnection took effect by querying status
+          const statusResponse = await fetch('/api/discord/status');
+          const statusData = await statusResponse.json();
+          
+          if (statusData?.status?.voiceStatus === 'connected') {
+            console.log(`Disconnect attempt ${attempts} did not take effect, retrying...`);
+            success = false;
+          }
+        } catch (innerErr) {
+          console.error(`Disconnect attempt ${attempts} failed:`, innerErr);
+          // Wait a bit before retrying
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+      
+      // Always invalidate queries to ensure UI reflects latest state
       queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      toast({
-        title: "Disconnected from Voice",
-        description: "Successfully disconnected from voice channel"
-      });
-      // We'll let the server update the actual status from the websocket
+      
+      if (success) {
+        toast({
+          title: "Disconnected from Voice",
+          description: "Successfully disconnected from voice channel"
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Disconnection Notification",
+          description: "Attempted to disconnect. Please check the connection status in a moment."
+        });
+      }
     } catch (err) {
       // Revert to previous state on error
       setLocalVoiceStatus(voiceStatus);
