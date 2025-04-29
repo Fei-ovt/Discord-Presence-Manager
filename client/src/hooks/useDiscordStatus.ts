@@ -13,7 +13,8 @@ const defaultStatus: StatusUpdate = {
   connectedChannel: null,
   activeSince: 'Not connected',
   connectionDuration: null,
-  uptime: 'Calculating...'
+  uptime: 'Calculating...',
+  error: undefined
 };
 
 export function useDiscordStatus() {
@@ -52,7 +53,8 @@ export function useDiscordStatus() {
     connectedChannel,
     activeSince,
     connectionDuration,
-    uptime
+    uptime,
+    error: errorMessage
   } = statusData?.status || defaultStatus;
 
   // Also provide the channelId if it exists
@@ -76,6 +78,7 @@ export function useDiscordStatus() {
     connectionDuration,
     uptime,
     channelId,
+    errorMessage, // Add error message to returned values
     
     // Query state
     isLoading,

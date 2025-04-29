@@ -72,6 +72,7 @@ export const statusUpdateSchema = z.object({
   activeSince: z.string(),
   connectionDuration: z.string().nullable(),
   uptime: z.string(),
+  error: z.string().optional(), // Add support for error messages
 });
 
 export type StatusUpdate = z.infer<typeof statusUpdateSchema>;
