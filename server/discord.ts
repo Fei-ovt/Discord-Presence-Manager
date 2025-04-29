@@ -338,12 +338,53 @@ export async function connectToVoice(channelId: string) {
       throw new Error(`Channel with ID ${channelId} not found`);
     }
     
-    // Use discord.js-selfbot-v13's joinVoiceChannel 
-    // The API is different from discord.js
-    const connection = await client.joinVoiceChannel({
-      channelId,
-      guildId: channel.guild?.id || ''
-    });
+    // For Discord self-bots, the voice joining method might be different
+    // Try several approaches to connect
+    try {
+      // Approach 1: Use the Voice Manager directly if available
+      if (client.voice && typeof client.voice.joinChannel === 'function') {
+        const guildId = channel.guild?.id;
+        if (!guildId) {
+          throw new Error('Cannot join voice channel: Guild ID not found');
+        }
+        
+        await client.voice.joinChannel(channelId);
+      } 
+      // Approach 2: Join via the channel object if it has a join method
+      else if (channel.join && typeof channel.join === 'function') {
+        await channel.join();
+      }
+      // Approach 3: Use a lower-level alternative
+      else {
+        const guildId = channel.guild?.id;
+        if (!guildId) {
+          throw new Error('Cannot join voice channel: Guild ID not found');
+        }
+        
+        if (typeof client.joinVoiceChannel === 'function') {
+          await client.joinVoiceChannel(channelId);
+        } else {
+          // Last resort - try a very basic approach
+          const voiceAdapterCreator = channel.guild?.voiceAdapterCreator;
+          
+          if (!voiceAdapterCreator) {
+            throw new Error('Voice adapter creator not found');
+          }
+          
+          // Try using internal methods - this may vary by discord.js version
+          await client._joinVoiceChannel?.(channelId);
+        }
+      }
+    } catch (voiceError) {
+      console.error('Voice connection error - first attempt failed:', voiceError);
+      
+      // Try alternative method - accessing the undocumented method if available
+      if (typeof client.ws?.connection?.voice?.joinVoiceChannel === 'function') {
+        await client.ws.connection.voice.joinVoiceChannel(channelId);
+      } else {
+        throw voiceError; // Re-throw if all attempts fail
+      }
+    }
     
     // Set voice connection start time and channel name
     voiceConnectionStartTime = new Date();
@@ -391,8 +432,52 @@ export async function disconnectFromVoice() {
   }
   
   try {
-    // Disconnect from voice channel using the method that discord.js-selfbot-v13 provides
-    await client.leaveVoiceChannel();
+    // Try multiple methods to leave voice channel depending on what's available
+    try {
+      // Approach 1: Standard method if available 
+      if (typeof client.leaveVoiceChannel === 'function') {
+        await client.leaveVoiceChannel();
+      }
+      // Approach 2: Using voice manager
+      else if (client.voice && typeof client.voice.disconnect === 'function') {
+        client.voice.disconnect();
+      }
+      // Approach 3: Find current voice connection and disconnect
+      else if (client.voice?.connections?.size > 0) {
+        // Disconnect from all voice connections
+        client.voice.connections?.forEach(connection => {
+          if (typeof connection.disconnect === 'function') {
+            connection.disconnect();
+          }
+        });
+      }
+      // Approach 4: Through any currently connected voice channels
+      else {
+        // Try a brute force approach - get all voice channels currently connected
+        const voiceChannels = client.channels?.cache?.filter(
+          (c: any) => c?.type === 'GUILD_VOICE' && c?.members?.has(client.user?.id)
+        );
+        
+        if (voiceChannels?.size > 0) {
+          voiceChannels.forEach((channel: any) => {
+            if (channel?.leave && typeof channel.leave === 'function') {
+              channel.leave();
+            }
+          });
+        } else {
+          console.log('No active voice connections found to disconnect from');
+        }
+      }
+    } catch (voiceError) {
+      console.error('Failed to disconnect using standard methods:', voiceError);
+      
+      // Try lower-level approaches
+      if (client.ws?.connection?.voice && typeof client.ws.connection.voice.disconnect === 'function') {
+        client.ws.connection.voice.disconnect();
+      } else {
+        throw voiceError;
+      }
+    }
     
     // Reset voice connection tracking
     voiceConnectionStartTime = null;
