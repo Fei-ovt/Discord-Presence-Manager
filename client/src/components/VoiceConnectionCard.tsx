@@ -187,58 +187,86 @@ export default function VoiceConnectionCard() {
     setIsDisconnecting(true);
     setLocalVoiceStatus('disconnected'); // Immediate feedback
     
+    // Show an initial toast informing about disconnect process
+    toast({
+      title: "Disconnecting from Voice",
+      description: "Attempting to fully disconnect - this may take a moment..."
+    });
+    
     try {
-      // Make multiple attempts to disconnect if needed
-      let success = false;
-      let attempts = 0;
-      const maxAttempts = 3;
+      // Make the disconnect request with a long timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       
-      while (!success && attempts < maxAttempts) {
-        attempts++;
-        try {
-          await apiRequest('POST', '/api/discord/disconnect-voice', {});
-          success = true;
+      try {
+        // Set a longer timeout since the server might be doing a nuclear disconnect
+        const response = await fetch('/api/discord/disconnect-voice', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          // Success - wait a moment to let things settle
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Short delay to allow the server to process the disconnect
-          if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+          // Always invalidate queries to ensure UI reflects latest state
+          queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
           
-          // Verify the disconnection took effect by querying status
-          const statusResponse = await fetch('/api/discord/status');
-          const statusData = await statusResponse.json();
+          toast({
+            title: "Disconnected from Voice",
+            description: "Successfully disconnected from voice channel"
+          });
+        } else {
+          // Server returned an error
+          console.error('Disconnect request failed:', await response.text());
           
-          if (statusData?.status?.voiceStatus === 'connected') {
-            console.log(`Disconnect attempt ${attempts} did not take effect, retrying...`);
-            success = false;
-          }
-        } catch (innerErr) {
-          console.error(`Disconnect attempt ${attempts} failed:`, innerErr);
-          // Wait a bit before retrying
-          if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+          toast({
+            variant: "destructive",
+            title: "Disconnection Failed",
+            description: "Server reported an error during disconnect"
+          });
+        }
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        
+        // Handle abort or network errors
+        if (fetchErr.name === 'AbortError') {
+          console.log('Disconnect request took too long but may still complete');
+          
+          toast({
+            title: "Disconnect In Progress",
+            description: "Disconnect operation is taking longer than expected but may still complete. The UI will update shortly."
+          });
+          
+          // Force a status update after a brief pause
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+          }, 5000);
+        } else {
+          console.error('Network error during disconnect:', fetchErr);
+          
+          toast({
+            variant: "destructive",
+            title: "Network Error",
+            description: "Unable to reach the server to disconnect. Please try again."
+          });
+          
+          // Revert to previous state on network error
+          setLocalVoiceStatus(voiceStatus);
         }
       }
-      
-      // Always invalidate queries to ensure UI reflects latest state
-      queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
-      
-      if (success) {
-        toast({
-          title: "Disconnected from Voice",
-          description: "Successfully disconnected from voice channel"
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Disconnection Notification",
-          description: "Attempted to disconnect. Please check the connection status in a moment."
-        });
-      }
     } catch (err) {
+      console.error('Top-level error in disconnect handler:', err);
+      
       // Revert to previous state on error
       setLocalVoiceStatus(voiceStatus);
+      
       toast({
         variant: "destructive",
         title: "Disconnection Failed",
@@ -246,6 +274,11 @@ export default function VoiceConnectionCard() {
       });
     } finally {
       setIsDisconnecting(false);
+      
+      // Force a query invalidation after everything is done
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/discord/status'] });
+      }, 1000);
     }
   };
 

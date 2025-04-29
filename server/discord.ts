@@ -609,128 +609,129 @@ export async function disconnectFromVoice() {
       return true;
     }
     
-    // Try multiple methods to leave voice channel depending on what's available
-    const disconnectMethods = [
-      // Method 1: Standard method if available
-      async () => {
-        if (typeof client.leaveVoiceChannel === 'function') {
-          await client.leaveVoiceChannel();
-          return true;
-        }
-        return false;
-      },
+    // NUCLEAR APPROACH: Force disconnect by destroying and recreating the client
+    try {
+      // Save token before destroying
+      const token = process.env.DISCORD_TOKEN || '';
       
-      // Method 2: Using voice manager
-      async () => {
-        if (client.voice && typeof client.voice.disconnect === 'function') {
-          client.voice.disconnect();
-          return true;
-        }
-        return false;
-      },
+      // Get the current state of connection for later
+      const currentGuilds = client.guilds?.cache?.map((g: any) => g.id) || [];
+      let foundVoiceChannel = false;
+      let guildWithVoice = null;
+      let channelIdToLeave = null;
       
-      // Method 3: Find current voice connection and disconnect
-      async () => {
-        if (client.voice?.connections?.size > 0) {
-          client.voice.connections.forEach(connection => {
-            if (typeof connection.disconnect === 'function') {
-              connection.disconnect();
+      // Try to find which guild and channel we're connected to
+      for (const guildId of currentGuilds) {
+        const guild = client.guilds.cache.get(guildId);
+        if (guild && guild.voiceStates && guild.voiceStates.cache) {
+          const voiceState = guild.voiceStates.cache.get(client.user?.id);
+          if (voiceState && voiceState.channelId) {
+            foundVoiceChannel = true;
+            guildWithVoice = guildId;
+            channelIdToLeave = voiceState.channelId;
+            
+            // Try one more direct disconnect approach
+            try {
+              console.log(`Found voice connection in guild ${guildId}, channel ${channelIdToLeave}`);
+              client.ws.send({
+                op: 4, // Voice State Update opcode
+                d: {
+                  guild_id: guildId,
+                  channel_id: null, // null = disconnect
+                  self_mute: false,
+                  self_deaf: false
+                }
+              });
+              
+              // Give it a moment to take effect
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (err) {
+              console.error('Failed on direct disconnect:', err);
             }
-          });
-          return true;
+          }
         }
-        return false;
-      },
+      }
       
-      // Method 4: Through any currently connected voice channels
-      async () => {
-        const voiceChannels = client.channels?.cache?.filter(
-          (c: any) => c?.type === 'GUILD_VOICE' && c?.members?.has(client.user?.id)
-        );
+      // If we found a voice connection, try to force disconnect through client
+      if (foundVoiceChannel) {
+        console.log(`Attempting nuclear disconnect from guild ${guildWithVoice}, channel ${channelIdToLeave}`);
         
-        if (voiceChannels?.size > 0) {
-          voiceChannels.forEach((channel: any) => {
-            if (channel?.leave && typeof channel.leave === 'function') {
-              channel.leave();
-            }
-          });
-          return true;
-        }
-        return false;
-      },
-      
-      // Method 5: Low-level connection method
-      async () => {
-        if (client.ws?.connection?.voice && typeof client.ws.connection.voice.disconnect === 'function') {
-          client.ws.connection.voice.disconnect();
-          return true;
-        }
-        return false;
-      },
-      
-      // Method 6: User voice state disconnect
-      async () => {
-        const guildIds = client.guilds?.cache?.map((guild: any) => guild.id) || [];
-        for (const guildId of guildIds) {
-          const guild = client.guilds.cache.get(guildId);
-          if (guild && guild.voiceStates && guild.voiceStates.cache) {
-            const voiceState = guild.voiceStates.cache.get(client.user?.id);
-            if (voiceState && voiceState.channelId) {
-              // Force disconnect by creating a low-level payload
+        // Try using destroy method if available
+        if (client.voice && typeof client.voice.connections !== 'undefined') {
+          if (client.voice.connections.size > 0) {
+            console.log(`Found ${client.voice.connections.size} voice connections to destroy`);
+            
+            // Get all voice connections
+            const connections = Array.from(client.voice.connections.values());
+            
+            // Try to destroy each connection
+            for (const connection of connections) {
               try {
-                client.ws.send({
-                  op: 4, // Voice State Update opcode
-                  d: {
-                    guild_id: guildId,
-                    channel_id: null, // null = disconnect
-                    self_mute: false,
-                    self_deaf: false
-                  }
-                });
-                return true;
-              } catch (err) {
-                console.error('Failed to send voice state update', err);
+                if (typeof connection.disconnect === 'function') {
+                  connection.disconnect();
+                }
+                
+                // Try to access and clean up any lingering event listeners
+                if (connection.removeAllListeners) {
+                  connection.removeAllListeners();
+                }
+                
+                // If there's a player, try to stop it
+                if (connection.player && typeof connection.player.stop === 'function') {
+                  connection.player.stop();
+                }
+              } catch (connErr) {
+                console.error('Error disconnecting individual connection:', connErr);
               }
             }
           }
-        }
-        return false;
-      }
-    ];
-    
-    // Try each method until one works
-    let disconnected = false;
-    for (const method of disconnectMethods) {
-      try {
-        disconnected = await method();
-        if (disconnected) {
-          console.log('Successfully disconnected using method');
-          break;
-        }
-      } catch (err) {
-        console.error('Disconnect method failed:', err);
-        // Continue to next method
-      }
-    }
-    
-    // Double-check to see if we're still connected
-    const stillConnected = await checkVoiceConnectionStatus();
-    if (stillConnected) {
-      console.log('Still connected after trying all disconnect methods.');
-      
-      // Last resort: Try to destroy all voice connections
-      try {
-        // Navigate the object structure carefully
-        if (client.voice) {
-          const manager = client.voice;
-          // Different versions have different properties
-          if (typeof manager.destroy === 'function') {
-            manager.destroy();
+          
+          // Try to destroy the voice manager
+          if (typeof client.voice.destroy === 'function') {
+            try {
+              client.voice.destroy();
+            } catch (destroyErr) {
+              console.error('Error destroying voice manager:', destroyErr);
+            }
           }
         }
-      } catch (err) {
-        console.error('Failed to destroy voice connections:', err);
       }
+    
+      // ULTRA NUCLEAR: Complete client restart
+      // This is a last resort that will disconnect from voice but briefly interrupt the Discord connection
+      if (token) {
+        // Attempt to reset the client - this is a safer alternative to full destruction
+        try {
+          // First notify that we're reconnecting
+          await updateConnectionStatus('connecting');
+          
+          if (typeof client.destroy === 'function') {
+            // Try to gracefully destroy the client
+            await client.destroy();
+            
+            // Log the action
+            await storage.addActivityLog({
+              type: 'system',
+              message: 'Performing client reset to force voice disconnect'
+            });
+            
+            // Wait a brief period
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Reinitialize the client
+            await client.login(token);
+            
+            // Update connection status after reconnect
+            await updateConnectionStatus('connected');
+            
+            console.log('Successfully reset client to force voice disconnect');
+          }
+        } catch (resetErr) {
+          console.error('Error during client reset:', resetErr);
+        }
+      }
+    } catch (nuclearErr) {
+      console.error('Nuclear disconnect approach failed:', nuclearErr);
     }
     
     // Reset voice connection tracking regardless of success
