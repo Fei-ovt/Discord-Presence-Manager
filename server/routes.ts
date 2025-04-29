@@ -64,6 +64,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Return a very basic response if it's a UptimeRobot request
     // UptimeRobot only needs a 200 status code, but we're adding minimal info for debugging
     if (req.headers['user-agent'] && req.headers['user-agent'].includes('UptimeRobot')) {
+      // Use a setTimeout to initiate a background check without delaying the response
+      setTimeout(async () => {
+        try {
+          const status = await storage.getDiscordStatus();
+          if (status?.isAccountActive) {
+            // Trigger a background status check without waiting for the result
+            getDiscordStatus().catch(err => {
+              console.error('Background Discord status check failed:', err);
+            });
+          }
+        } catch (error) {
+          console.error('Error in UptimeRobot background process:', error);
+        }
+      }, 100);
+      
       return res.status(200).send('OK');
     }
     
@@ -76,6 +91,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastActivity: new Date().toISOString()
       };
       res.json(healthStatus);
+      
+      // After sending the response, perform additional checks to keep connection active
+      setTimeout(async () => {
+        // This runs after the response is sent, helping to keep the Discord connection active
+        try {
+          const dbStatus = await storage.getDiscordStatus();
+          if (dbStatus?.isAccountActive && status?.status?.connectionStatus !== 'connected') {
+            console.log('Health check detected disconnected status, triggering reconnect check');
+            await import('./discord').then(({ reconnectClient }) => {
+              // Only defined in discord.ts module
+              if (typeof reconnectClient === 'function') {
+                reconnectClient();
+              }
+            }).catch(err => {
+              console.error('Failed to import reconnect function:', err);
+            });
+          }
+        } catch (error) {
+          console.error('Error in health check background process:', error);
+        }
+      }, 500);
     }).catch(err => {
       console.error('Health check error:', err);
       // Always return 200 for health checks to ensure UptimeRobot stays green
@@ -85,12 +121,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
       });
+      
+      // Try to initiate a reconnect in the background
+      setTimeout(async () => {
+        try {
+          const status = await storage.getDiscordStatus();
+          if (status?.isAccountActive && status?.autoReconnect) {
+            console.log('Health check detected error, triggering reconnect check');
+            await import('./discord').then(({ reconnectClient }) => {
+              if (typeof reconnectClient === 'function') {
+                reconnectClient();
+              }
+            }).catch(err => {
+              console.error('Failed to import reconnect function:', err);
+            });
+          }
+        } catch (error) {
+          console.error('Error in health check error recovery:', error);
+        }
+      }, 1000);
     });
   });
   
   // Simple plain text health check for monitoring services
   app.get('/health', (req, res) => {
     res.status(200).send('OK');
+    
+    // After sending the response, trigger background process checks
+    // This ensures the app stays active without holding up the response
+    setTimeout(async () => {
+      try {
+        // Check if Discord client is healthy
+        const status = await storage.getDiscordStatus();
+        if (status?.isAccountActive) {
+          // Trigger a background check of the Discord connection
+          getDiscordStatus().catch(err => {
+            console.error('Background Discord status check failed:', err);
+          });
+        }
+      } catch (error) {
+        console.error('Error in health check background process:', error);
+      }
+    }, 500);
   });
   
   // Initialize Discord client - may be null if token is invalid or Discord is unavailable

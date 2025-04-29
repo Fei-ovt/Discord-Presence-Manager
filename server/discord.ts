@@ -1092,12 +1092,47 @@ export async function disconnectFromVoice() {
   }
 }
 
-// Reconnect client
-async function reconnectClient() {
+// Track reconnection attempts and time
+let reconnectAttempts = 0;
+let lastReconnectTime = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const RECONNECT_INTERVAL = 30000; // 30 seconds
+const RECONNECT_RESET_TIME = 300000; // 5 minutes
+
+// Reconnect client with improved robustness
+export async function reconnectClient() {
+  // Get current time to track reconnection rate
+  const now = Date.now();
+  
+  // If we've tried recently, use exponential backoff
+  if (now - lastReconnectTime < RECONNECT_INTERVAL) {
+    const backoffTime = Math.min(RECONNECT_INTERVAL * Math.pow(2, reconnectAttempts), 300000); // Max 5 min backoff
+    console.log(`Too many reconnection attempts, backing off for ${backoffTime/1000} seconds`);
+    setTimeout(reconnectClient, backoffTime);
+    return false;
+  }
+  
+  // Reset reconnect attempts counter if it's been a while
+  if (now - lastReconnectTime > RECONNECT_RESET_TIME) {
+    reconnectAttempts = 0;
+  }
+  
+  // Track this attempt
+  reconnectAttempts++;
+  lastReconnectTime = now;
+  
   // Get token from environment
   const token = process.env.DISCORD_TOKEN || '';
   
   if (!token || !client) {
+    console.log('Cannot reconnect: Missing token or client');
+    return false;
+  }
+  
+  // Get the current status to check if account should be active
+  const status = await storage.getDiscordStatus();
+  if (!status?.isAccountActive) {
+    console.log('Not reconnecting: Account is set to inactive');
     return false;
   }
   
@@ -1105,25 +1140,95 @@ async function reconnectClient() {
     await updateConnectionStatus('connecting');
     
     // Log reconnection attempt
+    console.log(`Discord reconnection attempt ${reconnectAttempts}`);
     await storage.addActivityLog({
       type: 'system',
-      message: 'Attempting to reconnect to Discord'
+      message: `Attempting to reconnect to Discord (attempt ${reconnectAttempts})`
     });
     
-    // Try to log in again
-    await client.login(token);
-    return true;
+    // Create a connection timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Connection timeout')), 15000);
+    });
+    
+    // Try to log in again with timeout protection
+    try {
+      await Promise.race([
+        client.login(token),
+        timeoutPromise
+      ]);
+      
+      // If we get here, login was successful
+      console.log('Successfully reconnected to Discord');
+      reconnectAttempts = 0; // Reset counter on success
+      
+      // Log success
+      await storage.addActivityLog({
+        type: 'status',
+        message: 'Successfully reconnected to Discord'
+      });
+      
+      // Restore status mode from storage
+      if (status.statusMode) {
+        await setStatusMode(status.statusMode);
+      }
+      
+      // Restore voice connection if needed
+      if (status.isVoiceActive && status.channelId) {
+        try {
+          await connectToVoice(status.channelId);
+        } catch (voiceErr) {
+          console.error('Failed to restore voice connection after reconnect:', voiceErr);
+        }
+      }
+      
+      return true;
+    } catch (timeoutError) {
+      throw new Error('Connection timed out after 15 seconds');
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Log error
+    console.error(`Discord reconnection failed: ${errorMessage}`);
     await storage.addActivityLog({
       type: 'error',
       message: `Failed to reconnect to Discord: ${errorMessage}`
     });
     
-    // Try again after a delay
-    setTimeout(reconnectClient, 30000);
+    // Try creating a new client if enough failures
+    if (reconnectAttempts >= 3) {
+      try {
+        console.log('Attempting to create a new Discord client');
+        
+        // Destroy the old client if possible
+        if (client?.destroy) {
+          try {
+            await client.destroy();
+          } catch (destroyErr) {
+            console.error('Error destroying old client:', destroyErr);
+          }
+        }
+        
+        // Set up a completely new client
+        client = await setupDiscordClient();
+        if (client) {
+          console.log('Successfully created new Discord client');
+          
+          // Reset attempts on successful recreation
+          reconnectAttempts = 0;
+          
+          return true;
+        }
+      } catch (recreateError) {
+        console.error('Failed to create new Discord client:', recreateError);
+      }
+    }
+    
+    // Try again after a delay with exponential backoff
+    const backoffTime = Math.min(RECONNECT_INTERVAL * Math.pow(1.5, reconnectAttempts), 300000);
+    console.log(`Will retry reconnection in ${backoffTime/1000} seconds`);
+    setTimeout(reconnectClient, backoffTime);
     return false;
   }
 }
