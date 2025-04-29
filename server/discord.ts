@@ -331,6 +331,20 @@ export async function connectToVoice(channelId: string) {
   }
   
   try {
+    // First check if we're already connected to a voice channel
+    const alreadyConnected = await checkVoiceConnectionStatus();
+    if (alreadyConnected) {
+      // Disconnect from current channel first
+      try {
+        await disconnectFromVoice();
+        // Small delay to ensure disconnect completes before connecting again
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (err) {
+        console.error('Error disconnecting from previous voice channel:', err);
+        // Continue anyway to try connecting to the new channel
+      }
+    }
+    
     // Get the channel
     const channel = await client.channels.fetch(channelId);
     
@@ -338,62 +352,141 @@ export async function connectToVoice(channelId: string) {
       throw new Error(`Channel with ID ${channelId} not found`);
     }
     
-    // For Discord self-bots, the voice joining method might be different
-    // Try several approaches to connect
-    try {
-      // Approach 1: Use the Voice Manager directly if available
-      if (client.voice && typeof client.voice.joinChannel === 'function') {
-        const guildId = channel.guild?.id;
-        if (!guildId) {
-          throw new Error('Cannot join voice channel: Guild ID not found');
+    // Try multiple connection methods in sequence
+    const connectMethods = [
+      // Method 1: Direct Voice Manager method
+      async () => {
+        if (client.voice && typeof client.voice.joinChannel === 'function') {
+          const guildId = channel.guild?.id;
+          if (!guildId) {
+            return false; // Skip to next method
+          }
+          await client.voice.joinChannel(channelId);
+          return true;
         }
-        
-        await client.voice.joinChannel(channelId);
-      } 
-      // Approach 2: Join via the channel object if it has a join method
-      else if (channel.join && typeof channel.join === 'function') {
-        await channel.join();
-      }
-      // Approach 3: Use a lower-level alternative
-      else {
-        const guildId = channel.guild?.id;
-        if (!guildId) {
-          throw new Error('Cannot join voice channel: Guild ID not found');
+        return false;
+      },
+      
+      // Method 2: Channel join method
+      async () => {
+        if (channel.join && typeof channel.join === 'function') {
+          await channel.join();
+          return true;
         }
-        
+        return false;
+      },
+      
+      // Method 3: Client join voice channel method
+      async () => {
         if (typeof client.joinVoiceChannel === 'function') {
           await client.joinVoiceChannel(channelId);
-        } else {
-          // Last resort - try a very basic approach
-          const voiceAdapterCreator = channel.guild?.voiceAdapterCreator;
-          
-          if (!voiceAdapterCreator) {
-            throw new Error('Voice adapter creator not found');
-          }
-          
-          // Try using internal methods - this may vary by discord.js version
-          await client._joinVoiceChannel?.(channelId);
+          return true;
         }
-      }
-    } catch (voiceError) {
-      console.error('Voice connection error - first attempt failed:', voiceError);
+        return false;
+      },
       
-      // Try alternative method - accessing the undocumented method if available
-      if (typeof client.ws?.connection?.voice?.joinVoiceChannel === 'function') {
-        await client.ws.connection.voice.joinVoiceChannel(channelId);
-      } else {
-        throw voiceError; // Re-throw if all attempts fail
+      // Method 4: Try internal methods
+      async () => {
+        const guildId = channel.guild?.id;
+        if (!guildId) {
+          return false;
+        }
+        
+        if (client._joinVoiceChannel && typeof client._joinVoiceChannel === 'function') {
+          await client._joinVoiceChannel(channelId);
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 5: WS connection method
+      async () => {
+        if (client.ws?.connection?.voice?.joinVoiceChannel && 
+            typeof client.ws.connection.voice.joinVoiceChannel === 'function') {
+          await client.ws.connection.voice.joinVoiceChannel(channelId);
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 6: Low-level voice state update
+      async () => {
+        const guildId = channel.guild?.id;
+        if (guildId && client.ws) {
+          try {
+            // Send a voice state update packet directly
+            client.ws.send({
+              op: 4, // Voice State Update opcode
+              d: {
+                guild_id: guildId,
+                channel_id: channelId,
+                self_mute: false,
+                self_deaf: true // Set to deafened to save bandwidth
+              }
+            });
+            return true;
+          } catch (err) {
+            console.error('Failed to send voice state update', err);
+            return false;
+          }
+        }
+        return false;
+      }
+    ];
+    
+    // Try each connection method until one works
+    let connected = false;
+    for (const method of connectMethods) {
+      try {
+        connected = await method();
+        if (connected) {
+          console.log('Successfully connected to voice channel');
+          break;
+        }
+      } catch (err) {
+        console.error('Connection method failed:', err);
+        // Continue to next method
       }
     }
     
+    if (!connected) {
+      throw new Error('All voice connection methods failed');
+    }
+    
+    // Verify the connection
+    setTimeout(async () => {
+      const connectionVerified = await checkVoiceConnectionStatus();
+      if (!connectionVerified) {
+        console.warn('Voice connection could not be verified after connecting');
+        
+        // Try one more time with the direct WS method
+        try {
+          const guildId = channel.guild?.id;
+          if (guildId && client.ws) {
+            client.ws.send({
+              op: 4,
+              d: {
+                guild_id: guildId,
+                channel_id: channelId,
+                self_mute: false,
+                self_deaf: true
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Final connection attempt failed:', err);
+        }
+      }
+    }, 1000);
+    
     // Set voice connection start time and channel name
     voiceConnectionStartTime = new Date();
-    connectedChannelName = `Voice Channel (${channelId})`;
+    connectedChannelName = channel.name || `Voice Channel (${channelId})`;
     
     // Log voice connection
     await storage.addActivityLog({
       type: 'system',
-      message: `Connected to voice channel with ID: ${channelId}`
+      message: `Connected to voice channel: ${connectedChannelName}`
     });
     
     // Broadcast status update
@@ -436,6 +529,52 @@ export async function connectToVoice(channelId: string) {
   }
 }
 
+// Check if user is actually connected to a voice channel
+export async function checkVoiceConnectionStatus(): Promise<boolean> {
+  if (!client || !client.isReady()) {
+    return false;
+  }
+  
+  try {
+    // Method 1: Check client's voice state
+    if (client.voice && client.voice.connections && client.voice.connections.size > 0) {
+      return true;
+    }
+    
+    // Method 2: Check voice channels the client is in
+    const voiceChannels = client.channels?.cache?.filter(
+      (c: any) => c?.type === 'GUILD_VOICE' && c?.members?.has(client.user?.id)
+    );
+    
+    // Method 3: Check user voice state
+    const guildIds = client.guilds?.cache?.map((guild: any) => guild.id) || [];
+    for (const guildId of guildIds) {
+      const guild = client.guilds.cache.get(guildId);
+      if (guild && guild.voiceStates && guild.voiceStates.cache) {
+        const voiceState = guild.voiceStates.cache.get(client.user?.id);
+        if (voiceState && voiceState.channelId) {
+          return true;
+        }
+      }
+    }
+    
+    // If using various Discord client versions
+    if (
+      client.voice?.channelId || 
+      (client as any).voiceConnection || 
+      (client.ws?.connection?.voice && client.ws.connection.voice.channelID) ||
+      voiceChannels?.size > 0
+    ) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking voice connection status:', error);
+    return false;
+  }
+}
+
 // Disconnect from voice channel
 export async function disconnectFromVoice() {
   if (!client || !client.isReady()) {
@@ -443,28 +582,68 @@ export async function disconnectFromVoice() {
   }
   
   try {
+    // First, check if we're actually in a voice channel
+    const isConnected = await checkVoiceConnectionStatus();
+    if (!isConnected) {
+      console.log('Not connected to any voice channel, updating status...');
+      
+      // Reset voice connection tracking
+      voiceConnectionStartTime = null;
+      connectedChannelName = null;
+      
+      // Log disconnection state
+      await storage.addActivityLog({
+        type: 'system',
+        message: 'Already disconnected from voice channel'
+      });
+      
+      // Update status to reflect disconnected state
+      const status = await getStatusUpdate();
+      broadcastStatus({
+        ...status,
+        voiceStatus: 'disconnected' as 'connected' | 'disconnected' | 'connecting' | 'error',
+        connectedChannel: null,
+        connectionDuration: null
+      });
+      
+      return true;
+    }
+    
     // Try multiple methods to leave voice channel depending on what's available
-    try {
-      // Approach 1: Standard method if available 
-      if (typeof client.leaveVoiceChannel === 'function') {
-        await client.leaveVoiceChannel();
-      }
-      // Approach 2: Using voice manager
-      else if (client.voice && typeof client.voice.disconnect === 'function') {
-        client.voice.disconnect();
-      }
-      // Approach 3: Find current voice connection and disconnect
-      else if (client.voice?.connections?.size > 0) {
-        // Disconnect from all voice connections
-        client.voice.connections?.forEach(connection => {
-          if (typeof connection.disconnect === 'function') {
-            connection.disconnect();
-          }
-        });
-      }
-      // Approach 4: Through any currently connected voice channels
-      else {
-        // Try a brute force approach - get all voice channels currently connected
+    const disconnectMethods = [
+      // Method 1: Standard method if available
+      async () => {
+        if (typeof client.leaveVoiceChannel === 'function') {
+          await client.leaveVoiceChannel();
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 2: Using voice manager
+      async () => {
+        if (client.voice && typeof client.voice.disconnect === 'function') {
+          client.voice.disconnect();
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 3: Find current voice connection and disconnect
+      async () => {
+        if (client.voice?.connections?.size > 0) {
+          client.voice.connections.forEach(connection => {
+            if (typeof connection.disconnect === 'function') {
+              connection.disconnect();
+            }
+          });
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 4: Through any currently connected voice channels
+      async () => {
         const voiceChannels = client.channels?.cache?.filter(
           (c: any) => c?.type === 'GUILD_VOICE' && c?.members?.has(client.user?.id)
         );
@@ -475,22 +654,86 @@ export async function disconnectFromVoice() {
               channel.leave();
             }
           });
-        } else {
-          console.log('No active voice connections found to disconnect from');
+          return true;
         }
-      }
-    } catch (voiceError) {
-      console.error('Failed to disconnect using standard methods:', voiceError);
+        return false;
+      },
       
-      // Try lower-level approaches
-      if (client.ws?.connection?.voice && typeof client.ws.connection.voice.disconnect === 'function') {
-        client.ws.connection.voice.disconnect();
-      } else {
-        throw voiceError;
+      // Method 5: Low-level connection method
+      async () => {
+        if (client.ws?.connection?.voice && typeof client.ws.connection.voice.disconnect === 'function') {
+          client.ws.connection.voice.disconnect();
+          return true;
+        }
+        return false;
+      },
+      
+      // Method 6: User voice state disconnect
+      async () => {
+        const guildIds = client.guilds?.cache?.map((guild: any) => guild.id) || [];
+        for (const guildId of guildIds) {
+          const guild = client.guilds.cache.get(guildId);
+          if (guild && guild.voiceStates && guild.voiceStates.cache) {
+            const voiceState = guild.voiceStates.cache.get(client.user?.id);
+            if (voiceState && voiceState.channelId) {
+              // Force disconnect by creating a low-level payload
+              try {
+                client.ws.send({
+                  op: 4, // Voice State Update opcode
+                  d: {
+                    guild_id: guildId,
+                    channel_id: null, // null = disconnect
+                    self_mute: false,
+                    self_deaf: false
+                  }
+                });
+                return true;
+              } catch (err) {
+                console.error('Failed to send voice state update', err);
+              }
+            }
+          }
+        }
+        return false;
+      }
+    ];
+    
+    // Try each method until one works
+    let disconnected = false;
+    for (const method of disconnectMethods) {
+      try {
+        disconnected = await method();
+        if (disconnected) {
+          console.log('Successfully disconnected using method');
+          break;
+        }
+      } catch (err) {
+        console.error('Disconnect method failed:', err);
+        // Continue to next method
       }
     }
     
-    // Reset voice connection tracking
+    // Double-check to see if we're still connected
+    const stillConnected = await checkVoiceConnectionStatus();
+    if (stillConnected) {
+      console.log('Still connected after trying all disconnect methods.');
+      
+      // Last resort: Try to destroy all voice connections
+      try {
+        // Navigate the object structure carefully
+        if (client.voice) {
+          const manager = client.voice;
+          // Different versions have different properties
+          if (typeof manager.destroy === 'function') {
+            manager.destroy();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to destroy voice connections:', err);
+      }
+    }
+    
+    // Reset voice connection tracking regardless of success
     voiceConnectionStartTime = null;
     connectedChannelName = null;
     
