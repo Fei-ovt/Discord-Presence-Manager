@@ -633,15 +633,57 @@ export async function disconnectFromVoice() {
             // Try one more direct disconnect approach
             try {
               console.log(`Found voice connection in guild ${guildId}, channel ${channelIdToLeave}`);
-              client.ws.send({
-                op: 4, // Voice State Update opcode
-                d: {
-                  guild_id: guildId,
-                  channel_id: null, // null = disconnect
-                  self_mute: false,
-                  self_deaf: false
+              
+              // Check which type of websocket interface we have
+              if (typeof client.ws === 'object' && client.ws !== null) {
+                // Try different approaches depending on the client implementation
+                if (typeof client.ws.send === 'function') {
+                  // Direct WebSocket send method
+                  client.ws.send({
+                    op: 4, // Voice State Update opcode
+                    d: {
+                      guild_id: guildId,
+                      channel_id: null, // null = disconnect
+                      self_mute: false,
+                      self_deaf: false
+                    }
+                  });
+                } else if (client.ws.connection && typeof client.ws.connection.send === 'function') {
+                  // Send through connection
+                  client.ws.connection.send(JSON.stringify({
+                    op: 4,
+                    d: {
+                      guild_id: guildId,
+                      channel_id: null,
+                      self_mute: false,
+                      self_deaf: false
+                    }
+                  }));
+                } else if (client.ws.socket && typeof client.ws.socket.send === 'function') {
+                  // Direct socket send
+                  client.ws.socket.send(JSON.stringify({
+                    op: 4,
+                    d: {
+                      guild_id: guildId,
+                      channel_id: null,
+                      self_mute: false,
+                      self_deaf: false
+                    }
+                  }));
+                } else {
+                  console.log('No suitable ws.send method found, trying alternative disconnect');
+                  // Try an alternative approach by using client's voice state
+                  if (typeof client.voice?.setChannel === 'function') {
+                    await client.voice.setChannel(null);
+                  }
                 }
-              });
+              } else {
+                console.log('No WebSocket interface available, trying voice manager');
+                // Try voice manager if available
+                if (client.voice && typeof client.voice.disconnect === 'function') {
+                  client.voice.disconnect();
+                }
+              }
               
               // Give it a moment to take effect
               await new Promise(resolve => setTimeout(resolve, 500));
@@ -718,16 +760,89 @@ export async function disconnectFromVoice() {
             // Wait a brief period
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Reinitialize the client
-            await client.login(token);
+            // We need to completely reinitialize the client
+            try {
+              // Create a new Client instance with the same options as in setupDiscordClient
+              client = new Client({
+                checkUpdate: false,
+                messageCacheMaxSize: 50,
+                ws: {
+                  properties: {
+                    $browser: 'Discord Android', // Use mobile client identification
+                  },
+                },
+              });
+              
+              // Set up event listeners
+              client.on('ready', () => {
+                console.log('Discord client ready!');
+              });
+              
+              client.on('error', (error) => {
+                console.error('Discord client error:', error);
+              });
+              
+              // Login with the token
+              await client.login(token);
+              
+              // Verify the login was successful
+              if (!client.isReady()) {
+                await new Promise((resolve) => {
+                  const checkReady = setInterval(() => {
+                    if (client && client.isReady()) {
+                      clearInterval(checkReady);
+                      resolve(true);
+                    }
+                  }, 1000);
+                  
+                  // Timeout after 10 seconds
+                  setTimeout(() => {
+                    clearInterval(checkReady);
+                    resolve(false);
+                  }, 10000);
+                });
+              }
+              
+              if (client.isReady()) {
+                console.log('Successfully reconnected Discord client');
+                
+                // Set the status mode back to what it was
+                const status = await storage.getDiscordStatus();
+                if (status && status.statusMode) {
+                  try {
+                    await client.user.setStatus(status.statusMode as 'online' | 'idle' | 'dnd' | 'invisible');
+                  } catch (statusErr) {
+                    console.error('Error setting status after reconnect:', statusErr);
+                  }
+                }
+              } else {
+                console.error('Failed to reconnect Discord client after nuclear disconnect');
+              }
+            } catch (reloginErr) {
+              console.error('Error during client reinitialization:', reloginErr);
+              
+              // One more attempt with basic connection
+              try {
+                await setupDiscordClient();
+              } catch (finalErr) {
+                console.error('Final reconnection attempt failed:', finalErr);
+              }
+            }
             
-            // Update connection status after reconnect
-            await updateConnectionStatus('connected');
+            // Update connection status after reconnect attempt
+            await updateConnectionStatus(client && client.isReady() ? 'connected' : 'error');
             
             console.log('Successfully reset client to force voice disconnect');
           }
         } catch (resetErr) {
           console.error('Error during client reset:', resetErr);
+          
+          // Try a complete reset as a final fallback
+          try {
+            client = await setupDiscordClient() as Client;
+          } catch (e) {
+            console.error('Failed to recover client after error:', e);
+          }
         }
       }
     } catch (nuclearErr) {
