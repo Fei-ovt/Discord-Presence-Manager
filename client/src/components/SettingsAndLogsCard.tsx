@@ -128,7 +128,7 @@ export default function SettingsAndLogsCard() {
                 <span className="text-xs px-2 py-1 bg-green-900 bg-opacity-30 text-green-400 rounded-full">Set via .env</span>
               </div>
               <div className="bg-gray-800 rounded px-4 py-3 border border-gray-700 text-discord-muted text-sm">
-                <code>DISCORD_TOKEN=****************************************</code>
+                <code>DISCORD TOKEN = SETTING IN ENV</code>
               </div>
             </div>
 
