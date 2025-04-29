@@ -56,31 +56,47 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Since we're in an ESM environment, we'll use a simpler approach
+  // First try the default port
+  const defaultPort = 5000;
   
-  // Handle EADDRINUSE error gracefully
-  server.on('error', (error: any) => {
-    if (error.code === 'EADDRINUSE') {
-      log(`Port ${port} is already in use. Please try the following:`, 'error');
-      log('1. Stop any other instances of this application', 'error');
-      log('2. Check for any other applications using port 5000', 'error');
-      log('3. If issue persists, run: pkill -f "node" to kill all node processes', 'error');
-      log('4. Then restart your application', 'error');
-      process.exit(1);
-    } else {
-      log(`Server error: ${error.message}`, 'error');
-      throw error;
-    }
+  // Try to start the server with error handling
+  server.listen({
+    port: defaultPort,
+    host: "0.0.0.0",
+  }, () => {
+    log(`Serving on port ${defaultPort}`);
   });
   
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // Handle port already in use
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`Port ${defaultPort} is already in use, trying alternative port 3000...`, 'warn');
+      
+      // Try an alternative port
+      const alternativePort = 3000;
+      server.listen({
+        port: alternativePort,
+        host: "0.0.0.0",
+      }, () => {
+        log(`Serving on alternative port ${alternativePort}`);
+      });
+      
+      // Handle error on alternative port
+      server.on('error', (err2: any) => {
+        if (err2.code === 'EADDRINUSE') {
+          log(`Alternative port ${alternativePort} is also in use!`, 'error');
+          log(`Please restart your Replit environment or manually kill processes using these ports.`, 'error');
+          log(`Try running: pkill -f "node" in the shell to kill all node processes.`, 'error');
+          process.exit(1);
+        } else {
+          log(`Server error: ${err2.message}`, 'error');
+          process.exit(1);
+        }
+      });
+    } else {
+      log(`Server error: ${err.message}`, 'error');
+      process.exit(1);
+    }
   });
 })();
