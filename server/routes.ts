@@ -12,6 +12,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize WebSocket server
   const wss = setupWebsocketServer(httpServer);
   
+  // Root path status page
+  app.get('/', (req, res) => {
+    // If it's a browser request (looks for HTML), serve the app
+    if (req.headers.accept && req.headers.accept.includes('text/html')) {
+      // Let the Vite middleware handle it for serving the React app
+      return res.redirect('/index.html');
+    }
+    
+    // For non-browser requests directly to the root, show basic status
+    getDiscordStatus().then(status => {
+      res.json({
+        application: "Discord Presence 24/7",
+        status: "running",
+        uptime: process.uptime(),
+        discordConnected: status?.status?.connectionStatus === 'connected',
+        message: "Use the web interface to control your Discord presence"
+      });
+    }).catch(error => {
+      res.status(500).json({
+        application: "Discord Presence 24/7",
+        status: "error",
+        message: "Failed to retrieve Discord status"
+      });
+    });
+  });
+  
+  // Health check endpoint for UptimeRobot monitoring
+  app.get('/api/health', (req, res) => {
+    // Get Discord client state from the discord.ts module
+    getDiscordStatus().then(status => {
+      const healthStatus = {
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        discordConnected: status?.status?.connectionStatus === 'connected',
+        lastActivity: new Date().toISOString()
+      };
+      res.json(healthStatus);
+    }).catch(err => {
+      console.error('Health check error:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Could not retrieve Discord status',
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+  
   // Initialize Discord client - may be null if token is invalid or Discord is unavailable
   try {
     console.log('Initializing Discord client...');

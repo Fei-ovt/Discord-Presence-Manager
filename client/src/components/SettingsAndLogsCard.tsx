@@ -16,7 +16,8 @@ export default function SettingsAndLogsCard() {
   const { 
     systemNotifications,
     autoStart,
-    isLoading: statusLoading
+    isLoading: statusLoading,
+    connectionStatus
   } = useDiscordStatus();
 
   // Get activity logs
@@ -201,6 +202,38 @@ export default function SettingsAndLogsCard() {
                   onCheckedChange={handleToggleAutoStart}
                   disabled={isTogglingAutoStart}
                 />
+              </div>
+            </div>
+
+            {/* 24/7 Uptime Section */}
+            <div className="mt-4 py-3 px-4 bg-green-900/20 border border-green-800 rounded-lg">
+              <div className="flex items-center">
+                <div className="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
+                <h3 className="text-sm font-medium text-green-400">24/7 Uptime Ready</h3>
+              </div>
+              <p className="mt-2 text-xs text-green-300/80">
+                This application supports 24/7 uptime with UptimeRobot. 
+                See DEPLOYMENT.md for setup instructions.
+              </p>
+              <div className="mt-2 flex items-center text-xs text-green-300/70">
+                <span>Health Check URL:</span>
+                <code className="ml-2 px-2 py-1 bg-gray-800 rounded">/api/health</code>
+              </div>
+              <div className="mt-2 text-xs text-green-300/70">
+                <div className="flex justify-between items-center">
+                  <span>Discord Token:</span>
+                  <span className="px-2 py-1 bg-gray-800 rounded flex items-center">
+                    <div className={`h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'} mr-2`}></div>
+                    DISCORD TOKEN = SETTING IN ENV
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-green-300/60">
+                  {connectionStatus === 'connected' 
+                    ? 'Token is valid and connection is active' 
+                    : connectionStatus === 'connecting' 
+                    ? 'Connecting to Discord...' 
+                    : 'Token may be invalid or connection is disrupted'}
+                </p>
               </div>
             </div>
 

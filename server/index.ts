@@ -60,6 +60,22 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
+  
+  // Handle EADDRINUSE error gracefully
+  server.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      log(`Port ${port} is already in use. Please try the following:`, 'error');
+      log('1. Stop any other instances of this application', 'error');
+      log('2. Check for any other applications using port 5000', 'error');
+      log('3. If issue persists, run: pkill -f "node" to kill all node processes', 'error');
+      log('4. Then restart your application', 'error');
+      process.exit(1);
+    } else {
+      log(`Server error: ${error.message}`, 'error');
+      throw error;
+    }
+  });
+  
   server.listen({
     port,
     host: "0.0.0.0",
