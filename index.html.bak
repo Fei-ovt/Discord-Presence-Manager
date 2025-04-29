@@ -20,69 +20,71 @@
       padding: 0 15px;
     }
     .header {
-      padding: 15px 0;
-      margin-bottom: 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #2f3136;
+      padding: 15px;
+      background-color: #18191c;
+      border-bottom: 1px solid #2c2f33;
+    }
+    .discord-logo {
+      width: 20px;
+      height: 20px;
+      background-color: #5865f2;
+      border-radius: 5px;
+      margin-right: 10px;
     }
     .header-title {
-      font-size: 18px;
-      font-weight: 600;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .status-pill {
-      width: 10px;
-      height: 10px;
-      background-color: #43b581;
-      border-radius: 50%;
-      margin-left: 5px;
-    }
-    .card {
-      background-color: #2f3136;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    .card-header {
-      padding: 16px;
-      font-weight: 600;
-      font-size: 16px;
-      border-bottom: 1px solid #202225;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .card-body {
-      padding: 16px;
-    }
-    .user-profile {
-      display: flex;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: #5865f2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-weight: bold;
       color: white;
-      margin-right: 12px;
     }
-    .switch {
+    .status-pill {
+      background-color: #43b581;
+      border-radius: 20px;
+      height: 10px;
+      width: 50px;
+      margin-left: auto;
+    }
+    .card {
+      background-color: #2c2f33;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 15px 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .card-title {
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: white;
+    }
+    .profile {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .profile img {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .profile-name {
+      font-weight: 600;
+    }
+    .profile-tag {
+      color: #72767d;
+      font-size: 12px;
+    }
+    .toggle-switch {
       position: relative;
       display: inline-block;
-      width: 48px;
+      width: 50px;
       height: 24px;
+      margin-left: auto;
     }
-    .switch input {
+    .toggle-switch input {
       opacity: 0;
       width: 0;
       height: 0;
@@ -94,16 +96,17 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: #72767d;
+      background-color: #2c2f33;
+      border: 1px solid #72767d;
       transition: .4s;
       border-radius: 34px;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
+      height: 16px;
+      width: 16px;
+      left: 4px;
       bottom: 3px;
       background-color: white;
       transition: .4s;
@@ -111,6 +114,7 @@
     }
     input:checked + .slider {
       background-color: #5865f2;
+      border-color: #5865f2;
     }
     input:checked + .slider:before {
       transform: translateX(24px);
@@ -119,15 +123,18 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+    }
+    .status-row:last-child {
+      margin-bottom: 0;
     }
     .status-label {
-      font-size: 14px;
       color: #b9bbbe;
+      font-size: 14px;
     }
     .status-value {
+      color: white;
       font-size: 14px;
-      font-weight: 500;
     }
     .status-value.green {
       color: #43b581;
@@ -135,118 +142,131 @@
     .status-value.red {
       color: #f04747;
     }
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    .status-indicator.green {
+      background-color: #43b581;
+    }
+    .status-indicator.yellow {
+      background-color: #faa61a;
+    }
+    .status-indicator.red {
+      background-color: #f04747;
+    }
+    .status-indicator.gray {
+      background-color: #72767d;
+    }
     .status-buttons {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin: 16px 0;
+      margin-top: 15px;
+      gap: 8px;
     }
     .status-button {
       flex: 1;
+      padding: 6px 0;
       border-radius: 4px;
-      padding: 8px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       background-color: #36393f;
+      border: none;
+      color: white;
+      font-size: 13px;
       cursor: pointer;
-      transition: background-color 0.2s;
+      text-align: center;
     }
-    .status-button:hover {
-      background-color: #40444b;
+    .status-button .status-indicator {
+      margin-right: 4px;
+      vertical-align: middle;
     }
     .status-button.active {
-      background-color: #5865f2;
+      background-color: #4f545c;
     }
-    .status-button svg {
-      margin-bottom: 4px;
+    .input-row {
+      display: flex;
+      margin-top: 15px;
+      gap: 10px;
     }
-    .status-button span {
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .status-online .status-button {
-      border-top: 2px solid #43b581;
-    }
-    .status-idle .status-button {
-      border-top: 2px solid #faa61a;
-    }
-    .status-dnd .status-button {
-      border-top: 2px solid #f04747;
-    }
-    .status-invisible .status-button {
-      border-top: 2px solid #72767d;
-    }
-    .form-group {
-      margin-bottom: 16px;
-    }
-    .form-input {
-      width: 100%;
-      padding: 12px;
-      border-radius: 4px;
-      border: none;
+    .input-field {
+      flex: 1;
       background-color: #36393f;
-      color: #dcddde;
+      border: 1px solid #202225;
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: white;
       font-size: 14px;
-      box-sizing: border-box;
-      margin-bottom: 8px;
     }
-    .form-input::placeholder {
-      color: #72767d;
-    }
-    .form-input:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.5);
+    .input-button {
+      background-color: #5865f2;
+      border: none;
+      border-radius: 4px;
+      width: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
     }
     .action-buttons {
       display: flex;
-      gap: 15px;
-      margin-top: 16px;
+      margin-top: 15px;
+      gap: 10px;
     }
     .action-button {
       flex: 1;
-      padding: 10px 0;
-      border-radius: 4px;
+      padding: 8px 0;
+      background-color: #5865f2;
       border: none;
+      border-radius: 4px;
+      color: white;
       font-size: 14px;
-      font-weight: 500;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
     }
-    .action-button.primary {
-      background-color: #5865f2;
-      color: white;
+    .action-button svg {
+      margin-right: 6px;
     }
-    .action-button.primary:hover {
-      background-color: #4752c4;
-    }
-    .action-button.secondary {
+    .action-button.disconnect {
       background-color: #4f545c;
-      color: white;
     }
-    .action-button.secondary:hover {
-      background-color: #5d6269;
+    .connection-progress {
+      width: 100%;
+      height: 6px;
+      background-color: #36393f;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
     }
-    .log-panel {
-      max-height: 150px;
+    .connection-bar {
+      height: 100%;
+      width: 0%;
+      background-color: #43b581;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .logs {
+      margin-top: 15px;
+      max-height: 200px;
       overflow-y: auto;
       background-color: #36393f;
       border-radius: 4px;
-      padding: 8px;
-      margin-top: 16px;
+      padding: 10px;
       font-family: monospace;
       font-size: 12px;
     }
     .log-entry {
-      margin-bottom: 4px;
-      padding: 4px;
-      border-left: 3px solid transparent;
+      margin-bottom: 6px;
+      padding-left: 6px;
+      border-left: 2px solid #4f545c;
+      line-height: 1.4;
+    }
+    .log-entry .timestamp {
+      color: #72767d;
+      margin-right: 6px;
     }
     .log-entry.system {
       border-left-color: #5865f2;
@@ -257,24 +277,204 @@
     .log-entry.error {
       border-left-color: #f04747;
     }
-    .timestamp {
-      color: #72767d;
-      margin-right: 4px;
-    }
-    .connection-progress {
-      height: 4px;
+    .settings-box {
       background-color: #36393f;
-      border-radius: 2px;
-      overflow: hidden;
-      margin-top: 4px;
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 10px;
+      color: #72767d;
+      font-family: monospace;
+      font-size: 12px;
+      text-align: center;
     }
-    .connection-progress-bar {
-      height: 100%;
-      background-color: #5865f2;
-      width: 0%;
-      transition: width 0.5s;
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #72767d;
+      margin: 15px 0;
     }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-title">
+        <div class="discord-logo"></div>
+        Discord 24/7 Presence
+      </div>
+      <div class="status-pill" id="global-status-pill"></div>
+    </div>
     
+    <div class="card">
+      <div class="card-title">Account Status</div>
+      <div class="profile">
+        <img src="https://ui-avatars.com/api/?name=Discord&background=5865F2&color=fff" alt="User" id="user-avatar">
+        <div>
+          <div class="profile-name" id="user-name">fel.ovt</div>
+          <div class="profile-tag" id="user-tag">#7</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-account" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Connection Status</div>
+        <div class="status-value green" id="connection-status">Connected</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Status Mode</div>
+      </div>
+      
+      <div class="status-buttons">
+        <button class="status-button active" id="status-online">
+          <span class="status-indicator green"></span>Online
+        </button>
+        <button class="status-button" id="status-idle">
+          <span class="status-indicator yellow"></span>Idle
+        </button>
+        <button class="status-button" id="status-dnd">
+          <span class="status-indicator red"></span>Do Not Disturb
+        </button>
+        <button class="status-button" id="status-invisible">
+          <span class="status-indicator gray"></span>Invisible
+        </button>
+      </div>
+      
+      <div class="status-row" style="margin-top: 15px;">
+        <div class="status-label">Active Since</div>
+        <div class="status-value" id="active-since">6 seconds</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Current Status</div>
+        <div class="status-value green" id="current-status">Online</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">Voice Connection</div>
+      <label class="toggle-switch" style="float: right;">
+        <input type="checkbox" id="toggle-voice">
+        <span class="slider"></span>
+      </label>
+      
+      <div class="status-row" style="margin-top: 35px;">
+        <div class="status-label">Channel ID</div>
+      </div>
+      
+      <div class="input-row">
+        <input type="text" class="input-field" id="channel-id" placeholder="Enter channel ID">
+        <button class="input-button" id="save-channel">⚙️</button>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Auto Reconnect</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-reconnect" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="action-button" id="connect-voice">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 2C9.10457 2 10 2.89543 10 4V8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8V4C6 2.89543 6.89543 2 8 2Z" fill="white"/>
+            <path d="M3 7V8C3 10.7614 5.23858 13 8 13C10.7614 13 13 10.7614 13 8V7H14V8C14 11.1826 11.433 13.753 8.25 13.9847V16H7.75V13.9847C4.56702 13.753 2 11.1826 2 8V7H3Z" fill="white"/>
+          </svg>
+          Connect
+        </button>
+        <button class="action-button disconnect" id="disconnect-voice">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.25 1.25L14.75 14.75" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.35 6.4C6.12 6.86 6 7.4 6 8V8C6 9.1 6.9 10 8 10C8.6 10 9.14 9.75 9.54 9.35" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11 8C11 7.4 10.8 6.86 10.5 6.4L8 4C8.56 4 9.06 4.22 9.46 4.54" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 8V7H14V8C14 11.18 11.43 13.75 8.25 13.98V16H7.75V13.98C7.39 13.95 7.05 13.88 6.72 13.78" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4.2 11.28C3.48 10.5 3 9.32 3 8V7H2V8C2 10.05 3.23 11.81 5 12.65" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Disconnect
+        </button>
+      </div>
+      
+      <div class="status-row" style="margin-top: 15px;">
+        <div class="status-label">Connection Status:</div>
+        <div class="connection-progress">
+          <div class="connection-bar" id="connection-progress-bar"></div>
+        </div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Connected to:</div>
+        <div class="status-value" id="connected-to">Not connected</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Connected for:</div>
+        <div class="status-value" id="connected-for">N/A</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">Settings & Logs</div>
+      
+      <div class="status-row">
+        <div class="status-label">Discord Token</div>
+        <div class="status-value" id="token-status">Set via env</div>
+      </div>
+      
+      <div class="settings-box">
+        DISCORD TOKEN = SETTING IN ENV
+      </div>
+      
+      <div class="status-row" style="margin-top: 15px;">
+        <div class="status-label">System Notifications</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-notifications" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Auto-start on System Boot</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-autostart">
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">Activity Log</div>
+      </div>
+      
+      <div class="logs" id="log-panel">
+        <div class="log-entry status">
+          <span class="timestamp">2025-04-29 13:31:28</span>
+          Status successfully changed to online
+        </div>
+        <div class="log-entry system">
+          <span class="timestamp">2025-04-29 13:31:28</span>
+          Changing status to online
+        </div>
+        <div class="log-entry system">
+          <span class="timestamp">2025-04-29 13:31:28</span>
+          Connected to Discord as fel.ovt
+        </div>
+        <div class="log-entry system">
+          <span class="timestamp">2025-04-29 13:31:25</span>
+          Application started
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <div>Uptime: <span id="uptime">16 seconds</span></div>
+      <div>Discord 24/7 Presence</div>
+    </div>
+  </div>
+
+  <style>
     /* Additional CSS fixes for button spacing and error handling */
     .status-buttons {
       gap: 12px !important; /* Increased spacing between status buttons */
@@ -318,183 +518,6 @@
       to { opacity: 0; transform: translate(-50%, 20px); }
     }
   </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="header-title">
-        <div id="global-status-pill" class="status-pill"></div>
-        <div>Discord 24/7 Presence</div>
-      </div>
-    </div>
-    
-    <div class="card">
-      <div class="card-header">
-        Account Status
-      </div>
-      <div class="card-body">
-        <div class="user-profile">
-          <div class="avatar">D</div>
-          <div>fel.ovt</div>
-          <div style="flex: 1"></div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-account" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Connection Status:</div>
-          <div id="connection-status" class="status-value green">Connected</div>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Status Mode:</div>
-          <div id="current-status" class="status-value green">Online</div>
-        </div>
-        
-        <div class="status-buttons">
-          <div id="status-online" class="status-button active">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
-            </svg>
-            <span>Online</span>
-          </div>
-          <div id="status-idle" class="status-button">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
-              <path d="M8 5V8L10 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Idle</span>
-          </div>
-          <div id="status-dnd" class="status-button">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
-              <path d="M5 8H11" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Do Not Disturb</span>
-          </div>
-          <div id="status-invisible" class="status-button">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
-              <path d="M4 8C4 5.79086 5.79086 4 8 4" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Invisible</span>
-          </div>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Active Since:</div>
-          <div id="active-since" class="status-value">0 minutes, 0 seconds</div>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Current Status:</div>
-          <div id="current-status-2" class="status-value green">Online</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="card">
-      <div class="card-header">
-        Voice Connection
-        <label class="switch">
-          <input type="checkbox" id="toggle-voice">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <div class="status-label">Channel ID</div>
-          <input type="text" id="channel-id" class="form-input" placeholder="Enter channel ID" required>
-          <button id="save-channel" class="action-button secondary">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13.7071 4.29289C14.0976 4.68342 14.0976 5.31658 13.7071 5.70711L6.70711 12.7071C6.31658 13.0976 5.68342 13.0976 5.29289 12.7071L2.29289 9.70711C1.90237 9.31658 1.90237 8.68342 2.29289 8.29289C2.68342 7.90237 3.31658 7.90237 3.70711 8.29289L6 10.5858L12.2929 4.29289C12.6834 3.90237 13.3166 3.90237 13.7071 4.29289Z" fill="white"/>
-            </svg>
-            Save
-          </button>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Auto Reconnect:</div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-reconnect" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="action-buttons">
-          <button id="connect-voice" class="action-button primary">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 2C9.10457 2 10 2.89543 10 4V8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8V4C6 2.89543 6.89543 2 8 2Z" fill="white"/>
-              <path d="M3 7V8C3 10.7614 5.23858 13 8 13C10.7614 13 13 10.7614 13 8V7H14V8C14 11.1826 11.433 13.753 8.25 13.9847V16H7.75V13.9847C4.56702 13.753 2 11.1826 2 8V7H3Z" fill="white"/>
-            </svg>
-            Connect
-          </button>
-          <button id="disconnect-voice" class="action-button secondary">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1.25 1.25L14.75 14.75" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M6.35 6.4C6.12 6.86 6 7.4 6 8V8C6 9.1 6.9 10 8 10C8.6 10 9.14 9.75 9.54 9.35" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M11 8C11 7.4 10.8 6.86 10.5 6.4L8 4C8.56 4 9.06 4.22 9.46 4.54" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M13 8V7H14V8C14 11.18 11.43 13.75 8.25 13.98V16H7.75V13.98C7.39 13.95 7.05 13.88 6.72 13.78" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4.2 11.28C3.48 10.5 3 9.32 3 8V7H2V8C2 10.05 3.23 11.81 5 12.65" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Disconnect
-          </button>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Connection Status:</div>
-        </div>
-        <div class="connection-progress">
-          <div id="connection-progress-bar" class="connection-progress-bar"></div>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Connected to:</div>
-          <div id="connected-to" class="status-value">Not connected</div>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Connected for:</div>
-          <div id="connected-for" class="status-value">N/A</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="card">
-      <div class="card-header">
-        Settings & Logs
-      </div>
-      <div class="card-body">
-        <div class="status-row">
-          <div class="status-label">System Notifications:</div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-notifications" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Auto-start on System Boot:</div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-autostart">
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="status-row">
-          <div class="status-label">Uptime:</div>
-          <div id="uptime" class="status-value">0 seconds</div>
-        </div>
-        
-        <div class="status-label">Activity Log:</div>
-        <div id="log-panel" class="log-panel">
-          <!-- Log entries will be added here dynamically -->
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script>
     // Status variables
@@ -513,7 +536,6 @@
     const globalStatusPill = document.getElementById('global-status-pill');
     const connectionStatusEl = document.getElementById('connection-status');
     const currentStatusEl = document.getElementById('current-status');
-    const currentStatus2El = document.getElementById('current-status-2');
     const activesinceEl = document.getElementById('active-since');
     const connectedToEl = document.getElementById('connected-to');
     const connectedForEl = document.getElementById('connected-for');
@@ -548,24 +570,17 @@
       
       // Update current status
       currentStatusEl.textContent = state.statusMode.charAt(0).toUpperCase() + state.statusMode.slice(1);
-      currentStatus2El.textContent = state.statusMode.charAt(0).toUpperCase() + state.statusMode.slice(1);
       
       if (state.statusMode === 'online') {
         currentStatusEl.className = 'status-value green';
-        currentStatus2El.className = 'status-value green';
       } else if (state.statusMode === 'idle') {
         currentStatusEl.className = 'status-value';
         currentStatusEl.style.color = '#faa61a';
-        currentStatus2El.className = 'status-value';
-        currentStatus2El.style.color = '#faa61a';
       } else if (state.statusMode === 'dnd') {
         currentStatusEl.className = 'status-value red';
-        currentStatus2El.className = 'status-value red';
       } else {
         currentStatusEl.className = 'status-value';
         currentStatusEl.style.color = '#72767d';
-        currentStatus2El.className = 'status-value';
-        currentStatus2El.style.color = '#72767d';
       }
       
       // Update global status pill
@@ -1024,6 +1039,358 @@
           
           if (data && data.uptime) {
             uptimeEl.textContent = `${Math.floor(data.uptime)} seconds`;
+          }
+        }
+      } catch (error) {
+        console.error('Error updating uptime:', error);
+      }
+    }, 30000);
+  </script>
+</body>
+</html>
+
+  <script>
+    // Status variables
+    let connectionStatus = 'connected';
+    let statusMode = 'online';
+    let isAccountActive = true;
+    let isVoiceActive = true;
+    let voiceStatus = 'disconnected';
+    let autoReconnect = true;
+    let systemNotifications = true;
+    
+    // UI elements
+    const connectionIndicator = document.getElementById('connection-indicator');
+    const connectionStatusText = document.getElementById('connection-status-text');
+    const statusModeText = document.getElementById('status-mode');
+    const voiceStatusText = document.getElementById('voice-status');
+    const uptimeText = document.getElementById('uptime');
+    const logPanel = document.getElementById('log-panel');
+    
+    // Buttons
+    const toggleAccountBtn = document.getElementById('toggle-account');
+    const statusOnlineBtn = document.getElementById('status-online');
+    const statusIdleBtn = document.getElementById('status-idle');
+    const statusDndBtn = document.getElementById('status-dnd');
+    const statusInvisibleBtn = document.getElementById('status-invisible');
+    const toggleVoiceBtn = document.getElementById('toggle-voice');
+    const connectVoiceBtn = document.getElementById('connect-voice');
+    const disconnectVoiceBtn = document.getElementById('disconnect-voice');
+    const toggleReconnectBtn = document.getElementById('toggle-reconnect');
+    const toggleNotificationsBtn = document.getElementById('toggle-notifications');
+    
+    // Channel ID input
+    const channelIdInput = document.getElementById('channel-id');
+    
+    // Function to update the UI based on status
+    function updateUI() {
+      // Update connection indicator
+      connectionIndicator.className = `status-indicator ${connectionStatus}`;
+      connectionStatusText.textContent = connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1);
+      
+      // Update status mode
+      statusModeText.textContent = statusMode.charAt(0).toUpperCase() + statusMode.slice(1);
+      
+      // Update voice status
+      voiceStatusText.textContent = voiceStatus === 'connected' ? 'Connected' : 'Not Connected';
+      
+      // Update button states
+      toggleAccountBtn.textContent = isAccountActive ? 'Active' : 'Inactive';
+      toggleAccountBtn.className = isAccountActive ? 'active' : '';
+      
+      // Update status mode buttons
+      statusOnlineBtn.className = statusMode === 'online' ? 'active' : '';
+      statusIdleBtn.className = statusMode === 'idle' ? 'active' : '';
+      statusDndBtn.className = statusMode === 'dnd' ? 'active' : '';
+      statusInvisibleBtn.className = statusMode === 'invisible' ? 'active' : '';
+      
+      // Update voice buttons
+      toggleVoiceBtn.textContent = isVoiceActive ? 'Voice Active' : 'Voice Inactive';
+      toggleVoiceBtn.className = isVoiceActive ? 'active' : '';
+      
+      // Update setting buttons
+      toggleReconnectBtn.className = autoReconnect ? 'active' : '';
+      toggleNotificationsBtn.className = systemNotifications ? 'active' : '';
+    }
+    
+    // Function to add a log entry
+    function addLogEntry(message, type = '') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = message;
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+    
+    // Set up WebSocket connection
+    function setupWebSocket() {
+      addLogEntry('Attempting to connect to server...', '');
+      
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const socket = new WebSocket(wsUrl);
+        
+        socket.onopen = () => {
+          connectionStatus = 'connected';
+          addLogEntry('Connected to server!', 'log-success');
+          updateUI();
+        };
+        
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Update our status variables
+            connectionStatus = data.connectionStatus || connectionStatus;
+            statusMode = data.statusMode || statusMode;
+            isAccountActive = data.isAccountActive !== undefined ? data.isAccountActive : isAccountActive;
+            isVoiceActive = data.isVoiceActive !== undefined ? data.isVoiceActive : isVoiceActive;
+            voiceStatus = data.voiceStatus || voiceStatus;
+            autoReconnect = data.autoReconnect !== undefined ? data.autoReconnect : autoReconnect;
+            
+            // Update uptime
+            if (data.uptime) {
+              uptimeText.textContent = data.uptime;
+            }
+            
+            updateUI();
+          } catch (error) {
+            console.error('Error parsing message:', error);
+          }
+        };
+        
+        socket.onclose = () => {
+          connectionStatus = 'disconnected';
+          addLogEntry('Disconnected from server. Reconnecting...', 'log-error');
+          updateUI();
+          
+          // Try to reconnect after 3 seconds
+          setTimeout(setupWebSocket, 3000);
+        };
+        
+        socket.onerror = (error) => {
+          connectionStatus = 'error';
+          addLogEntry('WebSocket error!', 'log-error');
+          console.error('WebSocket error:', error);
+          updateUI();
+        };
+      } catch (error) {
+        addLogEntry('Error setting up WebSocket connection!', 'log-error');
+        console.error('Setup error:', error);
+      }
+    }
+    
+    // Set up API request function
+    async function makeRequest(endpoint, method = 'GET', data = null) {
+      try {
+        const options = {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        };
+        
+        if (data) {
+          options.body = JSON.stringify(data);
+        }
+        
+        const response = await fetch(endpoint, options);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        addLogEntry(`API request failed: ${error.message}`, 'log-error');
+        console.error('API request error:', error);
+        throw error;
+      }
+    }
+    
+    // Button event listeners
+    toggleAccountBtn.addEventListener('click', async () => {
+      try {
+        isAccountActive = !isAccountActive;
+        addLogEntry(`Setting account ${isAccountActive ? 'active' : 'inactive'}...`);
+        await makeRequest('/api/discord/account-status', 'POST', { isActive: isAccountActive });
+        addLogEntry(`Account is now ${isAccountActive ? 'active' : 'inactive'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle account status', 'log-error');
+      }
+    });
+    
+    // Status mode buttons
+    statusOnlineBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to online...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'online' });
+        statusMode = 'online';
+        addLogEntry('Status set to online', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusIdleBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to idle...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'idle' });
+        statusMode = 'idle';
+        addLogEntry('Status set to idle', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusDndBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to do not disturb...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'dnd' });
+        statusMode = 'dnd';
+        addLogEntry('Status set to do not disturb', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    statusInvisibleBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Setting status to invisible...');
+        await makeRequest('/api/discord/status-mode', 'POST', { mode: 'invisible' });
+        statusMode = 'invisible';
+        addLogEntry('Status set to invisible', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to set status', 'log-error');
+      }
+    });
+    
+    // Voice connection buttons
+    toggleVoiceBtn.addEventListener('click', async () => {
+      try {
+        isVoiceActive = !isVoiceActive;
+        addLogEntry(`Setting voice ${isVoiceActive ? 'active' : 'inactive'}...`);
+        await makeRequest('/api/discord/voice-active', 'POST', { isActive: isVoiceActive });
+        addLogEntry(`Voice is now ${isVoiceActive ? 'active' : 'inactive'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle voice status', 'log-error');
+      }
+    });
+    
+    connectVoiceBtn.addEventListener('click', async () => {
+      try {
+        const channelId = channelIdInput.value.trim();
+        
+        if (!channelId) {
+          addLogEntry('Please enter a voice channel ID', 'log-error');
+          return;
+        }
+        
+        // First save the channel ID
+        addLogEntry(`Setting voice channel ID to ${channelId}...`);
+        await makeRequest('/api/discord/channel-id', 'POST', { channelId });
+        
+        // Then connect to the voice channel
+        addLogEntry('Connecting to voice channel...');
+        await makeRequest('/api/discord/connect-voice', 'POST');
+        voiceStatus = 'connected';
+        addLogEntry('Connected to voice channel', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to connect to voice channel', 'log-error');
+      }
+    });
+    
+    disconnectVoiceBtn.addEventListener('click', async () => {
+      try {
+        addLogEntry('Disconnecting from voice channel...');
+        await makeRequest('/api/discord/disconnect-voice', 'POST');
+        voiceStatus = 'disconnected';
+        addLogEntry('Disconnected from voice channel', 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to disconnect from voice channel', 'log-error');
+      }
+    });
+    
+    // Settings buttons
+    toggleReconnectBtn.addEventListener('click', async () => {
+      try {
+        autoReconnect = !autoReconnect;
+        addLogEntry(`Setting auto reconnect ${autoReconnect ? 'enabled' : 'disabled'}...`);
+        await makeRequest('/api/discord/auto-reconnect', 'POST', { enabled: autoReconnect });
+        addLogEntry(`Auto reconnect is now ${autoReconnect ? 'enabled' : 'disabled'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle auto reconnect', 'log-error');
+      }
+    });
+    
+    toggleNotificationsBtn.addEventListener('click', async () => {
+      try {
+        systemNotifications = !systemNotifications;
+        addLogEntry(`Setting system notifications ${systemNotifications ? 'enabled' : 'disabled'}...`);
+        await makeRequest('/api/discord/notifications', 'POST', { enabled: systemNotifications });
+        addLogEntry(`System notifications are now ${systemNotifications ? 'enabled' : 'disabled'}`, 'log-success');
+        updateUI();
+      } catch (error) {
+        addLogEntry('Failed to toggle system notifications', 'log-error');
+      }
+    });
+    
+    // Initial setup
+    async function initializeApp() {
+      try {
+        // Get initial status
+        const status = await makeRequest('/api/discord/status');
+        
+        if (status && status.status) {
+          connectionStatus = status.status.connectionStatus || connectionStatus;
+          statusMode = status.status.statusMode || statusMode;
+          isAccountActive = status.status.isAccountActive !== undefined ? status.status.isAccountActive : isAccountActive;
+          isVoiceActive = status.status.isVoiceActive !== undefined ? status.status.isVoiceActive : isVoiceActive;
+          voiceStatus = status.status.voiceStatus || voiceStatus;
+          autoReconnect = status.status.autoReconnect !== undefined ? status.status.autoReconnect : autoReconnect;
+          
+          if (status.status.uptime) {
+            uptimeText.textContent = status.status.uptime;
+          }
+          
+          if (status.channelId) {
+            channelIdInput.value = status.channelId;
+          }
+        }
+        
+        updateUI();
+        addLogEntry('Successfully initialized from server status', 'log-success');
+      } catch (error) {
+        addLogEntry('Failed to get initial status', 'log-error');
+        console.error('Initialization error:', error);
+      }
+      
+      // Set up WebSocket
+      setupWebSocket();
+    }
+    
+    // Start the app
+    initializeApp();
+    
+    // Set up periodic uptime updates (if WebSocket fails)
+    setInterval(async () => {
+      try {
+        if (connectionStatus !== 'connected') {
+          const response = await fetch('/api/health');
+          const data = await response.json();
+          
+          if (data && data.uptime) {
+            uptimeText.textContent = `${Math.floor(data.uptime / 60)} minutes`;
           }
         }
       } catch (error) {
