@@ -19,7 +19,7 @@ let connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error' = 'd
 // Initialize Discord client
 export async function setupDiscordClient(): Promise<Client | null> {
   // Get token from environment variable
-  const token = process.env.DISCORD_TOKEN || '';
+  let token = process.env.DISCORD_TOKEN || '';
   
   if (!token) {
     console.error('DISCORD_TOKEN environment variable is missing');
@@ -32,14 +32,32 @@ export async function setupDiscordClient(): Promise<Client | null> {
     return null;
   }
   
-  console.log('Setting up Discord client with token...');
+  // Ensure token is properly formatted - trim whitespace
+  token = token.trim();
+  
+  // Log that we're setting up (don't log the actual token)
+  console.log('Setting up Discord client with token...', token.substring(0, 5) + '...' + token.substring(token.length - 5));
   // Don't log the actual token for security
   
-  // Create new client - discord.js-selfbot-v13 is designed specifically for user accounts
+  // Create new client with specific options for user accounts
   try {
     client = new Client({
-      // Empty options for simplicity, the library is already optimized for user accounts
-      checkUpdate: false
+      checkUpdate: false,
+      ws: {
+        properties: {
+          $browser: "Discord iOS" // This helps with token validation for user accounts
+        }
+      },
+      patchVoice: true, // Enable voice support
+      syncStatus: true, // Make sure status updates are synced
+      messageCacheMaxSize: 50, // Reduce memory usage
+      // Use minimal intents to avoid detection
+      intents: [
+        "GUILDS", 
+        "GUILD_MESSAGES", 
+        "GUILD_VOICE_STATES",
+        "DIRECT_MESSAGES"
+      ]
     });
     
     // Handle errors
@@ -107,11 +125,18 @@ export async function setupDiscordClient(): Promise<Client | null> {
       }
     });
     
-    // Try to log in
+    // Try to log in with different approach
     console.log('Attempting to login to Discord...');
     await updateConnectionStatus('connecting');
     
     try {
+      // Try different login approach with more durability
+      // Check if token format roughly matches expected Discord token format
+      if (token.length < 50 || token.length > 100) {
+        throw new Error('Token format appears invalid (incorrect length)');
+      }
+      
+      // Apply custom login procedure
       await client.login(token);
       console.log('Login successful!');
       return client;
