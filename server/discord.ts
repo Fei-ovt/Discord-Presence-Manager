@@ -151,7 +151,7 @@ export async function setupDiscordClient(): Promise<Client | null> {
       
       let friendlyMessage = `Failed to login to Discord: ${errorMsg}`;
       if (isTokenError) {
-        friendlyMessage = 'The Discord token provided is invalid or expired. Please update the DISCORD_TOKEN environment variable with a valid user token.';
+        friendlyMessage = 'The Discord token provided is invalid or expired. Please update the DISCORD_TOKEN environment variable with a valid user token. To get a valid token: 1) Open Discord in a browser, 2) Press F12, 3) Go to Application tab > Local Storage > discord.com, 4) Find the "token" entry and copy its value.';
       }
       
       await storage.addActivityLog({
