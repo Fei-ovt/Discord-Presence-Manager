@@ -337,13 +337,15 @@ export default function VoiceConnectionCard() {
                   style={{ boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)' }}
                 />
                 <Button
-                  size="icon"
-                  className="absolute right-1 top-1 bg-discord-blue text-white p-1.5 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-discord-blue"
-                  style={{ boxShadow: '0 2px 3px rgba(0, 0, 0, 0.2)' }}
                   onClick={handleSaveChannelId}
                   disabled={!channelIdInput.trim()}
+                  className="absolute right-1 top-1 flex items-center justify-center bg-gray-800 text-white py-2 px-3 rounded-xl hover:bg-gray-700 transition-colors"
+                  style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}
                 >
-                  <SaveIcon className="h-4 w-4" />
+                  <span className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-green-500"></span>
+                    Save
+                  </span>
                 </Button>
               </div>
             </div>
