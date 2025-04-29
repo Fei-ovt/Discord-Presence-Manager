@@ -275,18 +275,13 @@ export async function getDiscordStatus() {
   };
 }
 
-// Set Discord status mode
+// Set Discord status mode - nuclear approach that completely recreates the client
 export async function setStatusMode(mode: string) {
-  if (!client || !client.isReady()) {
-    throw new Error('Discord client not ready');
+  if (!client) {
+    throw new Error('Discord client not available');
   }
   
   try {
-    // Safety check for user object
-    if (!client.user) {
-      throw new Error('Discord user object not available');
-    }
-    
     // Map status mode to Discord presence status
     const presenceStatus = 
       mode === 'online' ? 'online' :
@@ -294,193 +289,211 @@ export async function setStatusMode(mode: string) {
       mode === 'dnd' ? 'dnd' :
       'invisible';
     
-    // Update presence with multiple approaches
-    console.log(`Setting Discord status to: ${presenceStatus}`);
+    console.log(`Setting Discord status to: ${presenceStatus} (USING NUCLEAR APPROACH)`);
     
-    // We're going to try multiple approaches in sequence
-    let success = false;
-    
-    // Approach 1: Use the Discord HTTP API directly
-    try {
-      console.log('Attempting to set status using HTTP API directly');
-      const token = process.env.DISCORD_TOKEN;
-      if (!token) {
-        throw new Error('Discord token not available');
-      }
-      
-      // Send a direct HTTP request to Discord using fetch
-      const options = {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token
-        },
-        body: JSON.stringify({ status: presenceStatus })
-      };
-      
-      // Execute the request using fetch
-      try {
-        const response = await fetch('https://discord.com/api/v9/users/@me/settings', options);
-        
-        if (response.ok) {
-          console.log('Status set successfully via HTTP API');
-          success = true;
-        } else {
-          const errorData = await response.text();
-          console.error(`HTTP status error: ${response.status}`, errorData);
-        }
-      } catch (fetchError) {
-        console.error('Error with fetch request:', fetchError);
-      }
-    } catch (httpErr) {
-      console.error('Error setting status with direct HTTP:', httpErr);
+    // Get token for reconnection
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      throw new Error('Discord token not available');
     }
     
-    // If HTTP API approach failed, try other methods
-    if (!success) {
-      // Approach 2: Direct user.setStatus method
-      try {
-        await client.user.setStatus(presenceStatus);
-        console.log('Status set using client.user.setStatus');
-        success = true;
-      } catch (err) {
-        console.error('Error setting status with client.user.setStatus:', err);
-        
-        // Approach 3: Via presence
-        try {
-          await client.user.setPresence({ 
-            status: presenceStatus,
-            activities: []
-          });
-          console.log('Status set using client.user.setPresence');
-          success = true;
-        } catch (presenceErr) {
-          console.error('Error setting status with setPresence:', presenceErr);
-          
-          // Approach 4: Manual presence update if available
-          if (typeof client.ws === 'object' && client.ws !== null) {
-            try {
-              // Try using low-level websocket API
-              const payload = JSON.stringify({
-                op: 3, // Status Update opcode
-                d: {
-                  since: 0,
-                  activities: [],
-                  afk: false,
-                  status: presenceStatus
-                }
-              });
-              
-              let socketSent = false;
-              
-              // Try with client.ws.send if available
-              if (typeof client.ws.send === 'function') {
-                try {
-                  client.ws.send(JSON.parse(payload));
-                  console.log('Status set using direct websocket send');
-                  socketSent = true;
-                } catch (parseErr) {
-                  console.error('Error parsing JSON for ws.send:', parseErr);
-                  try {
-                    client.ws.send(payload);
-                    console.log('Status set using direct websocket send (string)');
-                    socketSent = true;
-                  } catch (stringSendErr) {
-                    console.error('Error with string ws.send:', stringSendErr);
-                  }
-                }
-              }
-              
-              // Try with socket
-              if (!socketSent && client.ws.socket && typeof client.ws.socket.send === 'function') {
-                client.ws.socket.send(payload);
-                console.log('Status set using socket send');
-                socketSent = true;
-              }
-              
-              // Try with connection
-              if (!socketSent && client.ws.connection && typeof client.ws.connection.send === 'function') {
-                client.ws.connection.send(payload);
-                console.log('Status set using connection send');
-                socketSent = true;
-              }
-              
-              if (socketSent) {
-                success = true;
-              }
-            } catch (wsErr) {
-              console.error('Error setting status via WebSocket:', wsErr);
+    // Save current voice state info if needed for reconnection
+    let voiceInfo = null;
+    try {
+      if (client.isReady()) {
+        const guildIds = client.guilds?.cache?.map((g: any) => g.id) || [];
+        for (const guildId of guildIds) {
+          const guild = client.guilds.cache.get(guildId);
+          if (guild && guild.voiceStates && guild.voiceStates.cache) {
+            const voiceState = guild.voiceStates.cache.get(client.user?.id);
+            if (voiceState && voiceState.channelId) {
+              voiceInfo = {
+                guildId,
+                channelId: voiceState.channelId
+              };
+              break;
             }
           }
         }
       }
+    } catch (voiceErr) {
+      console.error('Error preserving voice state:', voiceErr);
     }
     
-    // Approach 5: Destructive approach - reconnect the client if all else fails
-    if (!success) {
-      console.log('All status update methods failed, trying reconnection approach');
-      try {
-        const token = process.env.DISCORD_TOKEN || '';
-        if (token && typeof client.destroy === 'function') {
-          await client.destroy();
-          
-          // Wait a brief period
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+    // Update status in local storage
+    await storage.updateDiscordStatus({ statusMode: mode });
+    
+    // Log the disconnection
+    await storage.addActivityLog({
+      type: 'system',
+      message: `Reinitializing Discord client to change status to ${mode}`
+    });
+    
+    // Destroy the existing client
+    let destroySuccess = false;
+    
+    try {
+      if (client.isReady() && typeof client.destroy === 'function') {
+        await client.destroy();
+        destroySuccess = true;
+      }
+    } catch (destroyErr) {
+      console.error('Error destroying client:', destroyErr);
+    }
+    
+    // Force disconnection state while reconnecting
+    await updateConnectionStatus('connecting');
+    
+    try {
+      // Create a completely new client with the desired status
+      client = new Client({
+        checkUpdate: false,
+        ws: {
+          properties: {
+            $browser: "Chrome",
+            $device: "Windows",
+            $os: "Windows 10"
+          }
+        },
+        // These settings mimic a regular Discord Web client
+        restRequestTimeout: 60000,
+        restGlobalRateLimit: 50,
+        retryLimit: 5,
+        patchVoice: true,
+        syncStatus: true,
+        messageCacheMaxSize: 50,
+        presence: {
+          status: presenceStatus,  // This is the key part - specify status on creation
+          activities: []
+        },
+        // Minimal intents
+        intents: [
+          "GUILDS", 
+          "GUILD_MESSAGES", 
+          "GUILD_VOICE_STATES",
+          "DIRECT_MESSAGES"
+        ]
+      });
+      
+      // Add necessary event handlers
+      client.on('error', async (error) => {
+        console.error('Discord client error:', error);
+        await storage.addActivityLog({
+          type: 'error',
+          message: `Discord client error: ${error.message}`
+        });
+        
+        await updateConnectionStatus('error');
+      });
+      
+      client.on('disconnect', async () => {
+        console.log('Discord client disconnected');
+        await storage.addActivityLog({
+          type: 'warning',
+          message: 'Disconnected from Discord'
+        });
+        
+        await updateConnectionStatus('disconnected');
+        
+        // Attempt to reconnect if auto reconnect is enabled
+        const status = await storage.getDiscordStatus();
+        if (status?.autoReconnect && status?.isAccountActive) {
+          await reconnectClient();
+        }
+      });
+      
+      // Log ready event
+      client.on('ready', async () => {
+        console.log('Discord client ready with new status!');
+        startTime = new Date();
+        connectionStatus = 'connected';
+        
+        // Immediately verify the status is correct
+        try {
+          if (client.user) {
+            console.log('Setting status again after client ready event');
+            // Belt and suspenders - set status again to be sure
+            await client.user.setStatus(presenceStatus);
+            console.log('Status updated after initialization');
+          }
+        } catch (finalStatusErr) {
+          console.error('Error setting final status:', finalStatusErr);
+        }
+        
+        // Reconnect to voice if needed
+        if (voiceInfo) {
           try {
-            // Create a new Client instance with the same options but with the new status
-            client = new Client({
-              checkUpdate: false,
-              messageCacheMaxSize: 50,
-              ws: {
-                properties: {
-                  $browser: 'Chrome',
-                  $device: 'Windows',
-                  $os: 'Windows 10'
-                },
-              },
-              presence: {
-                status: presenceStatus
-              }
-            });
-            
-            // Set up event listeners
-            client.on('ready', () => {
-              console.log('Discord client reconnected with new status');
-            });
-            
-            client.on('error', (error) => {
-              console.error('Discord client error:', error);
-            });
-            
-            // Login with the token
-            await client.login(token);
-            
-            // If we got here, it worked
-            success = true;
-          } catch (reconnectErr) {
-            console.error('Error during reconnection for status change:', reconnectErr);
+            console.log(`Attempting to reconnect to voice channel ${voiceInfo.channelId}`);
+            await connectToVoice(voiceInfo.channelId);
+          } catch (voiceReconnectErr) {
+            console.error('Error reconnecting to voice:', voiceReconnectErr);
           }
         }
-      } catch (destroyErr) {
-        console.error('Error destroying client for status change:', destroyErr);
+      });
+      
+      // Login with token to connect
+      console.log('Logging in with new client configuration');
+      await client.login(token);
+      
+      // Wait for client to fully initialize
+      if (!client.isReady()) {
+        console.log('Waiting for client to be ready...');
+        await new Promise<boolean>((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (client && client.isReady()) {
+              clearInterval(checkInterval);
+              resolve(true);
+            }
+          }, 500);
+          
+          // Set a timeout in case it never becomes ready
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve(false);
+          }, 10000);
+        });
       }
+      
+      if (client.isReady()) {
+        console.log('Client successfully initialized with new status');
+        
+        // Log status change success
+        await storage.addActivityLog({
+          type: 'status',
+          message: `Status successfully changed to ${mode}`
+        });
+        
+        // Broadcast updated status
+        const status = await getStatusUpdate();
+        broadcastStatus({
+          ...status,
+          statusMode: mode as 'online' | 'idle' | 'dnd' | 'invisible'
+        });
+        
+        return mode;
+      } else {
+        throw new Error('Client failed to initialize within timeout period');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      console.error('Error during nuclear status change:', errorMessage);
+      
+      // Log error
+      await storage.addActivityLog({
+        type: 'error',
+        message: `Failed to update status: ${errorMessage}`
+      });
+      
+      // Try to recover by reconnecting with default options
+      try {
+        client = await setupDiscordClient() as Client;
+      } catch (setupErr) {
+        console.error('Error recovering client:', setupErr);
+      }
+      
+      throw error;
     }
-    
-    // Log status change in our system
-    await storage.addActivityLog({
-      type: 'status',
-      message: `Status changed to ${mode}${success ? '' : ' (may not have applied)'}`
-    });
-    
-    // Broadcast status update to clients regardless
-    const status = await getStatusUpdate();
-    broadcastStatus({
-      ...status,
-      statusMode: mode as 'online' | 'idle' | 'dnd' | 'invisible'
-    });
-    
-    return mode;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
