@@ -27,7 +27,7 @@ export function useDiscordStatus() {
     error,
     refetch
   } = useQuery<{
-    status: StatusUpdate;
+    status: StatusUpdate & { channelId?: string; systemNotifications?: boolean; autoStart?: boolean };
     user: any;
   }>({
     queryKey: ['/api/discord/status'],
@@ -47,8 +47,6 @@ export function useDiscordStatus() {
     isAccountActive,
     isVoiceActive,
     autoReconnect,
-    systemNotifications,
-    autoStart,
     voiceStatus,
     connectedChannel,
     activeSince,
@@ -57,7 +55,9 @@ export function useDiscordStatus() {
     error: errorMessage
   } = statusData?.status || defaultStatus;
 
-  // Also provide the channelId if it exists
+  // Get additional properties from API status
+  const systemNotifications = apiStatus?.status?.systemNotifications || false;
+  const autoStart = apiStatus?.status?.autoStart || false;
   const channelId = apiStatus?.status?.channelId || '';
 
   return {

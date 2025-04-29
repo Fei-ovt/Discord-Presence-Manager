@@ -184,11 +184,11 @@ export default function AccountStatusCard() {
               <span className={`text-sm ${
                 connectionStatus === 'connected' ? 'text-green-400' : 
                 connectionStatus === 'connecting' ? 'text-yellow-400' : 
-                connectionStatus === 'error' ? 'text-red-400' : 'text-gray-400'
+                (connectionStatus as string) === 'error' ? 'text-red-400' : 'text-gray-400'
               }`}>
                 {connectionStatus === 'connected' ? 'Connected' : 
                  connectionStatus === 'connecting' ? 'Connecting...' : 
-                 connectionStatus === 'error' ? 'Connection Error' : 'Disconnected'}
+                 (connectionStatus as string) === 'error' ? 'Connection Error' : 'Disconnected'}
               </span>
             </div>
 

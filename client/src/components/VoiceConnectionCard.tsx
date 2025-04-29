@@ -8,7 +8,8 @@ import { useDiscordStatus } from '@/hooks/useDiscordStatus';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LinkIcon, UnlinkIcon, SaveIcon } from 'lucide-react';
+import { LinkIcon, UnlinkIcon, SaveIcon, AlertCircleIcon } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function VoiceConnectionCard() {
   const { toast } = useToast();
@@ -19,6 +20,7 @@ export default function VoiceConnectionCard() {
     voiceStatus,
     connectedChannel,
     connectionDuration,
+    errorMessage,
     isLoading
   } = useDiscordStatus();
 
@@ -267,6 +269,16 @@ export default function VoiceConnectionCard() {
               </Button>
             </div>
 
+            {/* Error Alert */}
+            {localVoiceStatus === 'error' && errorMessage && (
+              <Alert variant="destructive" className="mt-4 bg-discord-dnd/20 border-discord-dnd text-white">
+                <AlertCircleIcon className="h-4 w-4 mr-2" />
+                <AlertDescription className="text-sm whitespace-pre-line">
+                  {errorMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {/* Voice Connection Status */}
             <div className="mt-6 pt-4 border-t border-gray-800">
               <div className="flex items-center text-sm text-discord-muted">
