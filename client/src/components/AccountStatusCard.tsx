@@ -12,11 +12,17 @@ export default function AccountStatusCard() {
   const { 
     statusData, 
     isAccountActive, 
-    statusMode, 
+    statusMode,
     activeSince, 
     isLoading, 
     error 
   } = useDiscordStatus();
+  
+  // Define connection status type specifically for this component
+  type ConnectionStatusType = 'connected' | 'connecting' | 'disconnected' | 'error';
+  
+  // Extract connection status from the status data with appropriate typing
+  const connectionStatus = (statusData?.status?.connectionStatus || 'disconnected') as ConnectionStatusType;
   
   // Local states for immediate UI feedback
   const [localAccountActive, setLocalAccountActive] = useState(isAccountActive);
@@ -99,7 +105,6 @@ export default function AccountStatusCard() {
   const currentStatusStyle = getCurrentStatusStyle();
 
   // Determine if there's a token error with proper typing
-  const connectionStatus = (statusData?.status?.connectionStatus || 'disconnected') as 'connected' | 'connecting' | 'disconnected' | 'error';
   const hasTokenError = connectionStatus === 'error';
 
   return (
