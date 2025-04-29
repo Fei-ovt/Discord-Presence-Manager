@@ -297,75 +297,181 @@ export async function setStatusMode(mode: string) {
     // Update presence with multiple approaches
     console.log(`Setting Discord status to: ${presenceStatus}`);
     
-    // Try different ways to set the status based on the Discord.js version being used
-    // Approach 1: Direct user.setStatus method
+    // We're going to try multiple approaches in sequence
+    let success = false;
+    
+    // Approach 1: Use the Discord HTTP API directly
     try {
-      await client.user.setStatus(presenceStatus);
-      console.log('Status set using client.user.setStatus');
-    } catch (err) {
-      console.error('Error setting status with client.user.setStatus:', err);
+      console.log('Attempting to set status using HTTP API directly');
+      const token = process.env.DISCORD_TOKEN;
+      if (!token) {
+        throw new Error('Discord token not available');
+      }
       
-      // Approach 2: Via presence
+      // Send a direct HTTP request to Discord using fetch
+      const options = {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        },
+        body: JSON.stringify({ status: presenceStatus })
+      };
+      
+      // Execute the request using fetch
       try {
-        await client.user.setPresence({ 
-          status: presenceStatus
-        });
-        console.log('Status set using client.user.setPresence');
-      } catch (presenceErr) {
-        console.error('Error setting status with setPresence:', presenceErr);
+        const response = await fetch('https://discord.com/api/v9/users/@me/settings', options);
         
-        // Approach 3: Manual presence update if available
-        if (typeof client.ws === 'object' && client.ws !== null) {
-          try {
-            // Try different WebSocket approaches depending on client implementation
-            if (typeof client.ws.send === 'function') {
-              client.ws.send({
+        if (response.ok) {
+          console.log('Status set successfully via HTTP API');
+          success = true;
+        } else {
+          const errorData = await response.text();
+          console.error(`HTTP status error: ${response.status}`, errorData);
+        }
+      } catch (fetchError) {
+        console.error('Error with fetch request:', fetchError);
+      }
+    } catch (httpErr) {
+      console.error('Error setting status with direct HTTP:', httpErr);
+    }
+    
+    // If HTTP API approach failed, try other methods
+    if (!success) {
+      // Approach 2: Direct user.setStatus method
+      try {
+        await client.user.setStatus(presenceStatus);
+        console.log('Status set using client.user.setStatus');
+        success = true;
+      } catch (err) {
+        console.error('Error setting status with client.user.setStatus:', err);
+        
+        // Approach 3: Via presence
+        try {
+          await client.user.setPresence({ 
+            status: presenceStatus,
+            activities: []
+          });
+          console.log('Status set using client.user.setPresence');
+          success = true;
+        } catch (presenceErr) {
+          console.error('Error setting status with setPresence:', presenceErr);
+          
+          // Approach 4: Manual presence update if available
+          if (typeof client.ws === 'object' && client.ws !== null) {
+            try {
+              // Try using low-level websocket API
+              const payload = JSON.stringify({
                 op: 3, // Status Update opcode
                 d: {
-                  status: presenceStatus,
                   since: 0,
                   activities: [],
-                  afk: false
+                  afk: false,
+                  status: presenceStatus
                 }
               });
-              console.log('Status set using direct websocket send');
-            } else if (client.ws.socket && typeof client.ws.socket.send === 'function') {
-              client.ws.socket.send(JSON.stringify({
-                op: 3,
-                d: {
-                  status: presenceStatus,
-                  since: 0,
-                  activities: [],
-                  afk: false
+              
+              let socketSent = false;
+              
+              // Try with client.ws.send if available
+              if (typeof client.ws.send === 'function') {
+                try {
+                  client.ws.send(JSON.parse(payload));
+                  console.log('Status set using direct websocket send');
+                  socketSent = true;
+                } catch (parseErr) {
+                  console.error('Error parsing JSON for ws.send:', parseErr);
+                  try {
+                    client.ws.send(payload);
+                    console.log('Status set using direct websocket send (string)');
+                    socketSent = true;
+                  } catch (stringSendErr) {
+                    console.error('Error with string ws.send:', stringSendErr);
+                  }
                 }
-              }));
-              console.log('Status set using socket send');
-            } else if (client.ws.connection && typeof client.ws.connection.send === 'function') {
-              client.ws.connection.send(JSON.stringify({
-                op: 3,
-                d: {
-                  status: presenceStatus,
-                  since: 0,
-                  activities: [],
-                  afk: false
-                }
-              }));
-              console.log('Status set using connection send');
+              }
+              
+              // Try with socket
+              if (!socketSent && client.ws.socket && typeof client.ws.socket.send === 'function') {
+                client.ws.socket.send(payload);
+                console.log('Status set using socket send');
+                socketSent = true;
+              }
+              
+              // Try with connection
+              if (!socketSent && client.ws.connection && typeof client.ws.connection.send === 'function') {
+                client.ws.connection.send(payload);
+                console.log('Status set using connection send');
+                socketSent = true;
+              }
+              
+              if (socketSent) {
+                success = true;
+              }
+            } catch (wsErr) {
+              console.error('Error setting status via WebSocket:', wsErr);
             }
-          } catch (wsErr) {
-            console.error('Error setting status via WebSocket:', wsErr);
           }
         }
+      }
+    }
+    
+    // Approach 5: Destructive approach - reconnect the client if all else fails
+    if (!success) {
+      console.log('All status update methods failed, trying reconnection approach');
+      try {
+        const token = process.env.DISCORD_TOKEN || '';
+        if (token && typeof client.destroy === 'function') {
+          await client.destroy();
+          
+          // Wait a brief period
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          try {
+            // Create a new Client instance with the same options but with the new status
+            client = new Client({
+              checkUpdate: false,
+              messageCacheMaxSize: 50,
+              ws: {
+                properties: {
+                  $browser: 'Discord Android',
+                },
+              },
+              presence: {
+                status: presenceStatus
+              }
+            });
+            
+            // Set up event listeners
+            client.on('ready', () => {
+              console.log('Discord client reconnected with new status');
+            });
+            
+            client.on('error', (error) => {
+              console.error('Discord client error:', error);
+            });
+            
+            // Login with the token
+            await client.login(token);
+            
+            // If we got here, it worked
+            success = true;
+          } catch (reconnectErr) {
+            console.error('Error during reconnection for status change:', reconnectErr);
+          }
+        }
+      } catch (destroyErr) {
+        console.error('Error destroying client for status change:', destroyErr);
       }
     }
     
     // Log status change in our system
     await storage.addActivityLog({
       type: 'status',
-      message: `Status changed to ${mode}`
+      message: `Status changed to ${mode}${success ? '' : ' (may not have applied)'}`
     });
     
-    // Broadcast status update to clients
+    // Broadcast status update to clients regardless
     const status = await getStatusUpdate();
     broadcastStatus({
       ...status,
